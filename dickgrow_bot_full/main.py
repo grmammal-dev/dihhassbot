@@ -6,7 +6,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=3*60*60
+COOLDOWN=2*60*60
 
 db=sqlite3.connect(DB)
 c=db.cursor()
@@ -29,17 +29,21 @@ async def grow(m:Message):
     now=int(time.time())
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
-        return await m.reply(f"⏳ Wait {rem} minutes.")
-    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
+        return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
+    delta=random.randint(5,20) if random.random()<0.8 else -random.randint(1,5)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
-    await m.reply(f"🍆 {delta:+} cm\nSize: {size} cm")
+    await m.reply(
+        f"🌱 نتیجه رشد\n\n🍆 تغییر: {delta:+} سانت\n📏 اندازه فعلی: {size} سانت\n😎 ادامه بده قهرمان!"
+    )
 
 @dp.message(Command("size"))
 async def size(m:Message):
     user(m.from_user.id,m.from_user.full_name)
     s,d=c.execute("SELECT size,debt FROM users WHERE user_id=?",(m.from_user.id,)).fetchone()
-    await m.reply(f"🍆 Size: {s} cm\n💸 Debt: {d} cm")
+    await m.reply(
+        f"📊 پروفایل شما\n\n🍆 اندازه: {s} سانت\n💸 بدهی: {d} سانت"
+    )
 
 @dp.message(Command("loan"))
 async def loan(m:Message):
@@ -70,7 +74,7 @@ async def loan(m:Message):
     c.execute("INSERT INTO loans VALUES(?,?,?)",(lender,borrower,amt))
     db.commit()
 
-    await m.reply(f"💸 Loaned {amt} cm")
+    await m.reply(f"💸 وام انجام شد!\n\nمقدار: {amt} سانت")
 
 @dp.message(Command("repay"))
 async def repay(m:Message):
@@ -85,8 +89,8 @@ async def repay(m:Message):
 @dp.message(Command("top"))
 async def top(m:Message):
     rows=c.execute("SELECT name,size FROM users ORDER BY size DESC LIMIT 10").fetchall()
-    txt="🏆 Leaderboard\n\n"
-    for i,(n,s) in enumerate(rows,1): txt+=f"{i}. {n} — {s} cm\n"
+    txt="🏆 جدول بزرگان\n\n"
+    for i,(n,s) in enumerate(rows,1): txt+=f"{i}. {n} — {s} سانت\n"
     await m.reply(txt)
 
 @dp.message(Command("pvp"))
@@ -102,8 +106,8 @@ async def pvp(m:Message):
     )
     db.commit()
     bid=cur.lastrowid
-    kb=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Accept PvP",callback_data=f"pvp:{bid}")]])
-    await m.reply(f"⚔️ PvP challenge\nBet: {bet} cm",reply_markup=kb)
+    kb=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⚔️ قبول دوئل",callback_data=f"pvp:{bid}")]])
+    await m.reply(f"⚔️ دوئل مرگبار!\n\n💰 شرط: {bet} سانت\n\nبرنده همه رو می‌بره!",reply_markup=kb)
 
 @dp.callback_query(F.data.startswith("pvp:"))
 async def accept(q:CallbackQuery):
@@ -123,7 +127,7 @@ async def accept(q:CallbackQuery):
     c.execute("UPDATE battles SET active=0 WHERE id=?",(bid,))
     db.commit()
     winner_name=c.execute("SELECT name FROM users WHERE user_id=?",(winner,)).fetchone()[0]
-    await q.message.edit_text(f"⚔️ Battle finished!\n🏆 Winner: {winner_name}\n💰 Prize: {bet} cm")
+    await q.message.edit_text(f"🏆 پایان دوئل!\n\n👑 برنده: {winner_name}\n💰 جایزه: {bet} سانت\n\n😂 بازنده باید بیشتر تمرین کنه!")
 
 async def main():
     bot=Bot(TOKEN)
