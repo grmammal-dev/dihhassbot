@@ -6,7 +6,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=1*60*60
+COOLDOWN = 1 * 60 * 60
 
 db=sqlite3.connect(DB)
 c=db.cursor()
