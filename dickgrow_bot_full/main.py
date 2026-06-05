@@ -73,7 +73,10 @@ async def pvp(m:Message):
     user(m.from_user.id,m.from_user.full_name)
     s=c.execute("SELECT size FROM users WHERE user_id=?",(m.from_user.id,)).fetchone()[0]
     if s<bet: return await m.reply("Not enough cm.")
-    cur=c.execute("INSERT INTO battles(creator,bet) VALUES(?,?)",(m.from_user.id,)); db.commit()
+    cur=c.execute(
+    "INSERT INTO battles(creator,bet) VALUES(?,?)",
+    (m.from_user.id,)
+)
     bid=cur.lastrowid
     kb=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Accept PvP",callback_data=f"pvp:{bid}")]])
     await m.reply(f"⚔️ PvP challenge\nBet: {bet} cm",reply_markup=kb)
