@@ -80,8 +80,14 @@ async def pvp(m:Message):
     db.commit()
     bid=cur.lastrowid
     kb=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Accept PvP",callback_data=f"pvp:{bid}")]])
-    await m.reply(f"⚔️ PvP challenge\nBet: {bet} cm",reply_markup=kb)
+    winner_name = c.execute(
+    "SELECT name FROM users WHERE user_id=?",
+    (winner,)
+).fetchone()[0]
 
+await q.message.edit_text(
+    f"⚔️ Battle finished!\n🏆 Winner: {winner_name}\n💰 Prize: {bet} cm"
+)
 @dp.callback_query(F.data.startswith("pvp:"))
 async def accept(q:CallbackQuery):
     bid=int(q.data.split(":")[1])
