@@ -44,36 +44,33 @@ async def size(m:Message):
 @dp.message(Command("loan"))
 async def loan(m:Message):
     try:
-        amount = int(m.text.split()[1])
+        amt=int(m.text.split()[1])
     except:
         return await m.reply("Reply to a user and use /loan 5")
 
     if not m.reply_to_message:
         return await m.reply("Reply to a user and use /loan 5")
 
-    lender = m.from_user.id
-    borrower = m.reply_to_message.from_user.id
+    lender=m.from_user.id
+    borrower=m.reply_to_message.from_user.id
 
-    if lender == borrower:
+    if lender==borrower:
         return await m.reply("You can't loan yourself.")
 
-    user(lender, m.from_user.full_name)
-    user(borrower, m.reply_to_message.from_user.full_name)
+    user(lender,m.from_user.full_name)
+    user(borrower,m.reply_to_message.from_user.full_name)
 
-    lender_size = c.execute(
-        "SELECT size FROM users WHERE user_id=?",
-        (lender,)
-    ).fetchone()[0]
+    s=c.execute("SELECT size FROM users WHERE user_id=?",(lender,)).fetchone()[0]
 
-    if lender_size < amount:
+    if s<amt:
         return await m.reply("Not enough cm.")
 
-    c.execute("UPDATE users SET size=size-? WHERE user_id=?", (amount, lender))
-    c.execute("UPDATE users SET size=size+? WHERE user_id=?", (amount, borrower))
-    c.execute("INSERT INTO loans VALUES(?,?,?)", (lender, borrower, amount))
+    c.execute("UPDATE users SET size=size-? WHERE user_id=?",(amt,lender))
+    c.execute("UPDATE users SET size=size+? WHERE user_id=?",(amt,borrower))
+    c.execute("INSERT INTO loans VALUES(?,?,?)",(lender,borrower,amt))
     db.commit()
 
-    await m.reply(f"💸 Loaned {amount} cm")
+    await m.reply(f"💸 Loaned {amt} cm")
 
 @dp.message(Command("repay"))
 async def repay(m:Message):
@@ -99,7 +96,11 @@ async def pvp(m:Message):
     user(m.from_user.id,m.from_user.full_name)
     s=c.execute("SELECT size FROM users WHERE user_id=?",(m.from_user.id,)).fetchone()[0]
     if s<bet: return await m.reply("Not enough cm.")
-    cur=c.execute("INSERT INTO battles(creator,bet) VALUES(?,?)",(m.from_user.id,)); db.commit()
+    cur = c.execute(
+        "INSERT INTO battles(creator,bet) VALUES(?,?)",
+        (m.from_user.id, bet)
+    )
+    db.commit()
     bid=cur.lastrowid
     kb=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Accept PvP",callback_data=f"pvp:{bid}")]])
     await m.reply(f"⚔️ PvP challenge\nBet: {bet} cm",reply_markup=kb)
@@ -121,14 +122,8 @@ async def accept(q:CallbackQuery):
     c.execute("UPDATE users SET size=size-? WHERE user_id=?",(bet,loser))
     c.execute("UPDATE battles SET active=0 WHERE id=?",(bid,))
     db.commit()
-    winner_name = c.execute(
-        "SELECT name FROM users WHERE user_id=?",
-        (winner,)
-    ).fetchone()[0]
-
-    await q.message.edit_text(
-        f"⚔️ Battle finished!\n🏆 Winner: {winner_name}\n💰 Prize: {bet} cm"
-    )
+    winner_name=c.execute("SELECT name FROM users WHERE user_id=?",(winner,)).fetchone()[0]
+    await q.message.edit_text(f"⚔️ Battle finished!\n🏆 Winner: {winner_name}\n💰 Prize: {bet} cm")
 
 async def main():
     bot=Bot(TOKEN)
