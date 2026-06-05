@@ -12,6 +12,7 @@ db=sqlite3.connect(DB)
 c=db.cursor()
 c.execute("CREATE TABLE IF NOT EXISTS users(user_id INTEGER PRIMARY KEY,name TEXT,size INTEGER DEFAULT 0,debt INTEGER DEFAULT 0,last_grow INTEGER DEFAULT 0)")
 c.execute("CREATE TABLE IF NOT EXISTS battles(id INTEGER PRIMARY KEY AUTOINCREMENT,creator INTEGER,bet INTEGER,active INTEGER DEFAULT 1)")
+c.execute("CREATE TABLE IF NOT EXISTS loans(lender_id INTEGER, borrower_id INTEGER, amount INTEGER)")
 db.commit()
 
 def user(uid,name):
@@ -40,14 +41,39 @@ async def size(m:Message):
     s,d=c.execute("SELECT size,debt FROM users WHERE user_id=?",(m.from_user.id,)).fetchone()
     await m.reply(f"🍆 Size: {s} cm\n💸 Debt: {d} cm")
 
-@dp.message(Command("borrow"))
-async def borrow(m:Message):
-    try: amt=int(m.text.split()[1])
-    except: return await m.reply("Usage: /borrow 5")
-    user(m.from_user.id,m.from_user.full_name)
-    s,d=c.execute("SELECT size,debt FROM users WHERE user_id=?",(m.from_user.id,)).fetchone()
-    c.execute("UPDATE users SET size=?,debt=? WHERE user_id=?",(s+amt,d+amt,m.from_user.id)); db.commit()
-    await m.reply(f"🏦 Borrowed {amt} cm")
+@dp.message(Command("loan"))
+async def loan(m:Message):
+    try:
+        amount = int(m.text.split()[1])
+    except:
+        return await m.reply("Reply to a user and use /loan 5")
+
+    if not m.reply_to_message:
+        return await m.reply("Reply to a user and use /loan 5")
+
+    lender = m.from_user.id
+    borrower = m.reply_to_message.from_user.id
+
+    if lender == borrower:
+        return await m.reply("You can't loan yourself.")
+
+    user(lender, m.from_user.full_name)
+    user(borrower, m.reply_to_message.from_user.full_name)
+
+    lender_size = c.execute(
+        "SELECT size FROM users WHERE user_id=?",
+        (lender,)
+    ).fetchone()[0]
+
+    if lender_size < amount:
+        return await m.reply("Not enough cm.")
+
+    c.execute("UPDATE users SET size=size-? WHERE user_id=?", (amount, lender))
+    c.execute("UPDATE users SET size=size+? WHERE user_id=?", (amount, borrower))
+    c.execute("INSERT INTO loans VALUES(?,?,?)", (lender, borrower, amount))
+    db.commit()
+
+    await m.reply(f"💸 Loaned {amount} cm")
 
 @dp.message(Command("repay"))
 async def repay(m:Message):
@@ -73,21 +99,11 @@ async def pvp(m:Message):
     user(m.from_user.id,m.from_user.full_name)
     s=c.execute("SELECT size FROM users WHERE user_id=?",(m.from_user.id,)).fetchone()[0]
     if s<bet: return await m.reply("Not enough cm.")
-    cur = c.execute(
-        "INSERT INTO battles(creator,bet) VALUES(?,?)",
-        (m.from_user.id, bet)
-    )
-    db.commit()
+    cur=c.execute("INSERT INTO battles(creator,bet) VALUES(?,?)",(m.from_user.id,)); db.commit()
     bid=cur.lastrowid
     kb=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Accept PvP",callback_data=f"pvp:{bid}")]])
-winner_name = c.execute(
-    "SELECT name FROM users WHERE user_id=?",
-    (winner,)
-).fetchone()[0]
+    await m.reply(f"⚔️ PvP challenge\nBet: {bet} cm",reply_markup=kb)
 
-await q.message.edit_text(
-    f"⚔️ Battle finished!\n🏆 Winner: {winner_name}\n💰 Prize: {bet} cm"
-)
 @dp.callback_query(F.data.startswith("pvp:"))
 async def accept(q:CallbackQuery):
     bid=int(q.data.split(":")[1])
@@ -105,7 +121,14 @@ async def accept(q:CallbackQuery):
     c.execute("UPDATE users SET size=size-? WHERE user_id=?",(bet,loser))
     c.execute("UPDATE battles SET active=0 WHERE id=?",(bid,))
     db.commit()
-    await q.message.edit_text(f"⚔️ Battle finished!\nWinner ID: {winner}\nPrize: {bet} cm")
+    winner_name = c.execute(
+        "SELECT name FROM users WHERE user_id=?",
+        (winner,)
+    ).fetchone()[0]
+
+    await q.message.edit_text(
+        f"⚔️ Battle finished!\n🏆 Winner: {winner_name}\n💰 Prize: {bet} cm"
+    )
 
 async def main():
     bot=Bot(TOKEN)
