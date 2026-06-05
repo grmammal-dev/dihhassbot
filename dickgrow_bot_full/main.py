@@ -80,7 +80,7 @@ async def pvp(m:Message):
     db.commit()
     bid=cur.lastrowid
     kb=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Accept PvP",callback_data=f"pvp:{bid}")]])
-    winner_name = c.execute(
+winner_name = c.execute(
     "SELECT name FROM users WHERE user_id=?",
     (winner,)
 ).fetchone()[0]
