@@ -30,7 +30,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,25) 
+    delta=random.randint(5,25)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -156,32 +156,22 @@ CELEBS = {
 
 @dp.message(Command("market"))
 async def market(m:Message):
-    tier_info = {
-        "S": ("🥇 Tier S", 300, 150),
-        "A": ("🥈 Tier A", 200, 100),
-        "B": ("🥉 Tier B", 100, 50),
+    tier_headers = {
+        "S": "🥇 Tier S — خرید: 300 سانت | اسپین: 150 سانت",
+        "A": "🥈 Tier A — خرید: 200 سانت | اسپین: 100 سانت",
+        "B": "🥉 Tier B — خرید: 100 سانت | اسپین: 50 سانت",
     }
-    tiers = {"S": [], "A": [], "B": []}
+    sent_header = set()
     for name, (tier, price, spin, photo) in CELEBS.items():
-        tiers[tier].append((name, photo))
-    for tier_key, (label, buy_price, spin_price) in tier_info.items():
-        celebs = tiers[tier_key]
-        header = (
-            f"{label} — خرید: {buy_price} سانت | اسپین: {spin_price} سانت\n\n"
-            + "\n".join(f"👑 {name}" for name, _ in celebs)
-            + f"\n\n🎰 اسپین: /spin {tier_key.lower()}"
-            + f"\n🛒 خرید: /buy نام"
-        )
-        tier_photo = next((p for _, p in celebs if p), None)
-        sent = False
-        if tier_photo:
-            try:
-                await m.bot.send_photo(m.chat.id, tier_photo, caption=header)
-                sent = True
-            except Exception:
-                pass
-        if not sent:
-            await m.bot.send_message(m.chat.id, header)
+        caption = ""
+        if tier not in sent_header:
+            caption += f"{tier_headers[tier]}\n\n"
+            sent_header.add(tier)
+        caption += f"👑 {name}\n💰 خرید: {price} سانت\n🛒 /buy {name}"
+        try:
+            await m.bot.send_photo(m.chat.id, photo, caption=caption)
+        except Exception:
+            await m.bot.send_message(m.chat.id, caption)
 
 @dp.message(Command("collection"))
 async def collection(m:Message):
