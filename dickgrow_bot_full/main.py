@@ -286,4 +286,4 @@ async def testphoto(m: Message):
     )
 @dp.message(Command("testphoto"))
 async def testphoto(m: Message):
-    await m.reply("working")
+    await m.reply("TEST WORKS")
