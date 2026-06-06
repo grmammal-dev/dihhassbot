@@ -223,10 +223,78 @@ async def market_page_nav(q: CallbackQuery):
 
 @dp.message(Command("collection"))
 async def collection(m:Message):
-    rows=c.execute("SELECT celeb FROM collections WHERE user_id=?",(m.from_user.id,)).fetchall()
+    user(m.from_user.id, m.from_user.full_name)
+    rows = c.execute("SELECT celeb FROM collections WHERE user_id=?", (m.from_user.id,)).fetchall()
     if not rows:
         return await m.reply("📚 هنوز چیزی نداری.")
-    await m.reply("📚 کالکشن شما\n\n" + "\n".join("👑 "+r[0] for r in rows))
+    celebs = [r[0] for r in rows]
+    await send_collection_page(m.chat.id, m.from_user.id, celebs, 0, m.bot)
+
+async def send_collection_page(chat_id, owner_id, celebs, page, bot):
+    name = celebs[page]
+    tier, price, spin, photo = CELEBS[name]
+    tier_label = {"S": "🥇 S", "A": "🥈 A", "B": "🥉 B"}[tier]
+    txt = (
+        f"📚 کالکشن — {page+1}/{len(celebs)}\n\n"
+        f"👑 {name}\n"
+        f"🏅 تیر: {tier_label}\n"
+        f"💰 ارزش: {price} سانت\n\n"
+        f"🛒 /sell {name}\n"
+        f"🏪 /list {name} [قیمت]"
+    )
+    buttons = []
+    if page > 0:
+        buttons.append(InlineKeyboardButton(text="◀️", callback_data=f"col:{owner_id}:{page-1}"))
+    if page < len(celebs) - 1:
+        buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"col:{owner_id}:{page+1}"))
+    kb = InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
+    if photo:
+        try:
+            await bot.send_photo(chat_id, photo, caption=txt, reply_markup=kb)
+            return
+        except:
+            pass
+    await bot.send_message(chat_id, txt, reply_markup=kb)
+
+@dp.callback_query(F.data.startswith("col:"))
+async def collection_nav(q: CallbackQuery):
+    _, owner_id, page = q.data.split(":")
+    owner_id = int(owner_id)
+    page = int(page)
+    if q.from_user.id != owner_id:
+        return await q.answer("❌ این کالکشن مال تو نیست!", show_alert=True)
+    rows = c.execute("SELECT celeb FROM collections WHERE user_id=?", (owner_id,)).fetchall()
+    celebs = [r[0] for r in rows]
+    if page >= len(celebs):
+        page = len(celebs) - 1
+    name = celebs[page]
+    tier, price, spin, photo = CELEBS[name]
+    tier_label = {"S": "🥇 S", "A": "🥈 A", "B": "🥉 B"}[tier]
+    txt = (
+        f"📚 کالکشن — {page+1}/{len(celebs)}\n\n"
+        f"👑 {name}\n"
+        f"🏅 تیر: {tier_label}\n"
+        f"💰 ارزش: {price} سانت\n\n"
+        f"🛒 /sell {name}\n"
+        f"🏪 /list {name} [قیمت]"
+    )
+    buttons = []
+    if page > 0:
+        buttons.append(InlineKeyboardButton(text="◀️", callback_data=f"col:{owner_id}:{page-1}"))
+    if page < len(celebs) - 1:
+        buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"col:{owner_id}:{page+1}"))
+    kb = InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
+    try:
+        if photo:
+            await q.message.edit_media(
+                media=InputMediaPhoto(media=photo, caption=txt),
+                reply_markup=kb
+            )
+        else:
+            await q.message.edit_caption(caption=txt, reply_markup=kb)
+    except Exception:
+        await q.message.answer(txt, reply_markup=kb)
+    await q.answer()
 
 
 @dp.message(Command("buy"))
