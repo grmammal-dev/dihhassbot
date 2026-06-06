@@ -284,3 +284,6 @@ async def testphoto(m: Message):
         photo="AgACAgQAAxkBAAEfCslqJF4aGLfY3nWNvS572NxehqwhiAACsBJrGzNwKVFiDAiqRzQvkgEAAwIAA3gAAzsE",
         caption="Kylie Test"
     )
+@dp.message(Command("testphoto"))
+async def testphoto(m: Message):
+    await m.reply("working")
