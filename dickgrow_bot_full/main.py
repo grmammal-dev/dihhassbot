@@ -154,56 +154,68 @@ CELEBS = {
 }
 
 
-TIER_ORDER = ["S", "A", "B"]
-TIER_LABELS = {
-    "S": "🥇 Tier S — خرید: 300 سانت | اسپین: 150 سانت",
-    "A": "🥈 Tier A — خرید: 200 سانت | اسپین: 100 سانت",
-    "B": "🥉 Tier B — خرید: 100 سانت | اسپین: 50 سانت",
+TIER_CELEBS = {
+    "S": [(n, v[1], v[3]) for n, v in CELEBS.items() if v[0] == "S"],
+    "A": [(n, v[1], v[3]) for n, v in CELEBS.items() if v[0] == "A"],
+    "B": [(n, v[1], v[3]) for n, v in CELEBS.items() if v[0] == "B"],
 }
+TIER_LABELS = {
+    "S": "🥇 Tier S",
+    "A": "🥈 Tier A",
+    "B": "🥉 Tier B",
+}
+TIER_PRICES = {"S": (300, 150), "A": (200, 100), "B": (100, 50)}
 
-def market_page(tier: str) -> tuple:
-    page_num = TIER_ORDER.index(tier) + 1
+def build_market_caption(tier, page):
+    celebs = TIER_CELEBS[tier]
+    name, price, photo = celebs[page]
+    buy_price, spin_price = TIER_PRICES[tier]
     label = TIER_LABELS[tier]
-    celebs = [(n, v) for n, v in CELEBS.items() if v[0] == tier]
-    txt = f"🛒 بازار سلبریتی — صفحه {page_num}/3\n\n{label}\n\n"
-    for name, (t, price, spin, photo) in celebs:
-        txt += f"👑 {name}\n"
-    txt += f"\n🎰 اسپین: /spin {tier.lower()}\n🛒 خرید: /buy نام"
-    photo = next((v[3] for n, v in celebs if v[3]), None)
-    prev_tier = TIER_ORDER[page_num - 2] if page_num > 1 else None
-    next_tier = TIER_ORDER[page_num] if page_num < 3 else None
+    txt = (
+        f"🛒 بازار سلبریتی\n"
+        f"{label} — صفحه {page+1}/{len(celebs)}\n\n"
+        f"👑 {name}\n"
+        f"💰 خرید: {price} سانت\n"
+        f"🎰 اسپین: {spin_price} سانت\n\n"
+        f"🛒 /buy {name}\n"
+        f"🎰 /spin {tier.lower()}"
+    )
+    return txt, photo
+
+def build_market_kb(tier, page):
+    celebs = TIER_CELEBS[tier]
     buttons = []
-    if prev_tier:
-        buttons.append(InlineKeyboardButton(text="◀️ قبلی", callback_data=f"market:{prev_tier}"))
-    if next_tier:
-        buttons.append(InlineKeyboardButton(text="بعدی ▶️", callback_data=f"market:{next_tier}"))
-    kb = InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
-    return txt, photo, kb
+    if page > 0:
+        buttons.append(InlineKeyboardButton(text="◀️", callback_data=f"mkt:{tier}:{page-1}"))
+    if page < len(celebs) - 1:
+        buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"mkt:{tier}:{page+1}"))
+    return InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
 
 @dp.message(Command("market"))
 async def market(m:Message):
-    txt, photo, kb = market_page("S")
-    if photo:
-        await m.bot.send_photo(m.chat.id, photo, caption=txt, reply_markup=kb)
-    else:
-        await m.reply(txt, reply_markup=kb)
+    for tier in ["S", "A", "B"]:
+        txt, photo = build_market_caption(tier, 0)
+        kb = build_market_kb(tier, 0)
+        try:
+            await m.bot.send_photo(m.chat.id, photo, caption=txt, reply_markup=kb)
+        except Exception:
+            await m.bot.send_message(m.chat.id, txt, reply_markup=kb)
 
-@dp.callback_query(F.data.startswith("market:"))
-async def market_nav(q: CallbackQuery):
-    tier = q.data.split(":")[1]
-    txt, photo, kb = market_page(tier)
+@dp.callback_query(F.data.startswith("mkt:"))
+async def market_page_nav(q: CallbackQuery):
+    _, tier, page = q.data.split(":")
+    page = int(page)
+    txt, photo = build_market_caption(tier, page)
+    kb = build_market_kb(tier, page)
     try:
-        if photo:
-            await q.message.edit_media(
-                media=InputMediaPhoto(media=photo, caption=txt),
-                reply_markup=kb
-            )
-        else:
-            await q.message.edit_text(txt, reply_markup=kb)
+        await q.message.edit_media(
+            media=InputMediaPhoto(media=photo, caption=txt),
+            reply_markup=kb
+        )
     except Exception:
-        if photo:
-            await q.message.answer_photo(photo, caption=txt, reply_markup=kb)
-        else:
+        try:
+            await q.message.edit_caption(caption=txt, reply_markup=kb)
+        except Exception:
             await q.message.answer(txt, reply_markup=kb)
     await q.answer()
 
