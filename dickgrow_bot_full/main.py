@@ -2,11 +2,11 @@
 import os, sqlite3, random, time
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=1*60*60
+COOLDOWN=3*60*60
 
 db=sqlite3.connect(DB)
 c=db.cursor()
@@ -30,7 +30,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,25) 
+    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -154,23 +154,58 @@ CELEBS = {
 }
 
 
+TIER_ORDER = ["S", "A", "B"]
+TIER_LABELS = {
+    "S": "🥇 Tier S — خرید: 300 سانت | اسپین: 150 سانت",
+    "A": "🥈 Tier A — خرید: 200 سانت | اسپین: 100 سانت",
+    "B": "🥉 Tier B — خرید: 100 سانت | اسپین: 50 سانت",
+}
+
+def market_page(tier: str) -> tuple:
+    page_num = TIER_ORDER.index(tier) + 1
+    label = TIER_LABELS[tier]
+    celebs = [(n, v) for n, v in CELEBS.items() if v[0] == tier]
+    txt = f"🛒 بازار سلبریتی — صفحه {page_num}/3\n\n{label}\n\n"
+    for name, (t, price, spin, photo) in celebs:
+        txt += f"👑 {name}\n"
+    txt += f"\n🎰 اسپین: /spin {tier.lower()}\n🛒 خرید: /buy نام"
+    photo = next((v[3] for n, v in celebs if v[3]), None)
+    prev_tier = TIER_ORDER[page_num - 2] if page_num > 1 else None
+    next_tier = TIER_ORDER[page_num] if page_num < 3 else None
+    buttons = []
+    if prev_tier:
+        buttons.append(InlineKeyboardButton(text="◀️ قبلی", callback_data=f"market:{prev_tier}"))
+    if next_tier:
+        buttons.append(InlineKeyboardButton(text="بعدی ▶️", callback_data=f"market:{next_tier}"))
+    kb = InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
+    return txt, photo, kb
+
 @dp.message(Command("market"))
 async def market(m:Message):
-    txt = "🛒 بازار سلبریتی\n\n"
-    txt += "🥇 Tier S — خرید: 300 سانت | اسپین: 150 سانت\n"
-    for name, (tier, price, spin, photo) in CELEBS.items():
-        if tier == "S":
-            txt += f"  👑 {name} — /buy {name}\n"
-    txt += "\n🥈 Tier A — خرید: 200 سانت | اسپین: 100 سانت\n"
-    for name, (tier, price, spin, photo) in CELEBS.items():
-        if tier == "A":
-            txt += f"  👑 {name} — /buy {name}\n"
-    txt += "\n🥉 Tier B — خرید: 100 سانت | اسپین: 50 سانت\n"
-    for name, (tier, price, spin, photo) in CELEBS.items():
-        if tier == "B":
-            txt += f"  👑 {name} — /buy {name}\n"
-    txt += "\n🎰 اسپین: /spin s | a | b"
-    await m.reply(txt)
+    txt, photo, kb = market_page("S")
+    if photo:
+        await m.bot.send_photo(m.chat.id, photo, caption=txt, reply_markup=kb)
+    else:
+        await m.reply(txt, reply_markup=kb)
+
+@dp.callback_query(F.data.startswith("market:"))
+async def market_nav(q: CallbackQuery):
+    tier = q.data.split(":")[1]
+    txt, photo, kb = market_page(tier)
+    try:
+        if photo:
+            await q.message.edit_media(
+                media=InputMediaPhoto(media=photo, caption=txt),
+                reply_markup=kb
+            )
+        else:
+            await q.message.edit_text(txt, reply_markup=kb)
+    except Exception:
+        if photo:
+            await q.message.answer_photo(photo, caption=txt, reply_markup=kb)
+        else:
+            await q.message.answer(txt, reply_markup=kb)
+    await q.answer()
 
 @dp.message(Command("collection"))
 async def collection(m:Message):
