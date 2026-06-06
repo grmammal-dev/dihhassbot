@@ -30,7 +30,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(300,400) 
+    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -134,27 +134,29 @@ async def accept(q:CallbackQuery):
 c.execute("CREATE TABLE IF NOT EXISTS collections(user_id INTEGER, celeb TEXT)")
 db.commit()
 
+
 CELEBS = {
-    "Ana de Armas": ("S",300,150),
-    "Madison Beer": ("S",300,150),
-    "Georgina Rodriguez": ("S",300,150),
-    "Kylie Jenner": ("S",300,150),
-    "Sydney Sweeney": ("S",300,150),
-    "Olivia Cooke": ("A",200,100),
-    "Scarlett Johansson": ("A",200,100),
-    "Sabrina Carpenter": ("A",200,100),
-    "Olivia Rodrigo": ("A",200,100),
-    "Kendall Jenner": ("A",200,100),
-    "Kathryn Newton": ("B",100,50),
-    "Margot Robbie": ("B",100,50),
-    "Taylor Swift": ("B",100,50),
-    "Dua Lipa": ("B",100,50),
-    "Megan Fox": ("B",100,50),
+    "Ana de Armas": ("S",300,150,"AgACAgQAAxkBAAEfCvFqJGF9gHeK-FdL3g8Dci7TQNEoggAC2Q1rG3tMKVFs57x8-y1feQEAAwIAA3gAAzsE"),
+    "Madison Beer": ("S",300,150,"AgACAgQAAxkBAAEfCv9qJGKST7WbNyfzkzP1WSoI1Iu2cgAC2w1rG3tMKVHiqz1XQ-d6zAEAAwIAA3gAAzsE"),
+    "Georgina Rodriguez": ("S",300,150,"AgACAgQAAxkBAAEfCvlqJGIXIENSIjrMMnLZoHS7AVxU1QAC2g1rG3tMKVFEyBOLad49wgEAAwIAA3gAAzsE"),
+    "Kylie Jenner": ("S",300,150,"AgACAgQAAxkBAAEfCslqJF4aGLfY3nWNvS572NxehqwhiAACsBJrGzNwKVFiDAiqRzQvkgEAAwIAA3gAAzsE"),
+    "Sydney Sweeney": ("S",300,150,"AgACAgQAAxkBAAEfCtNqJF-RQinO1Aw9eVUcLjW1ChLosQAC1A1rG3tMKVFWcBdZYVaR7wEAAwIAA3kAAzsE"),
+    "Olivia Cooke": ("A",200,100,None),
+    "Scarlett Johansson": ("A",200,100,"AgACAgQAAxkBAAEfCstqJF7mY7jY4yYqDgFc3uWfgkGEeAAC0Q1rG3tMKVE3ZBCFgWdpKQEAAwIAA3kAAzsE"),
+    "Sabrina Carpenter": ("A",200,100,"AgACAgQAAxkBAAEfCuFqJGA8mGq78iqNtgsem5PSDj05LwAC1g1rG3tMKVG7fYDaui3BJAEAAwIAA3gAAzsE"),
+    "Olivia Rodrigo": ("A",200,100,"AgACAgQAAxkBAAEfCwFqJGL8g2q8giApiK3Jk-VXJ-lH6gAC3A1rG3tMKVFfIoq12SC3aQEAAwIAA3kAAzsE"),
+    "Kendall Jenner": ("A",200,100,"AgACAgQAAxkBAAEfCwNqJGOYTT7JYWQuSqGtj9atlc3T3AAC3Q1rG3tMKVEHQ57PLiwgpgEAAwIAA3kAAzsE"),
+    "Kathryn Newton": ("B",100,50,None),
+    "Margot Robbie": ("B",100,50,None),
+    "Taylor Swift": ("B",100,50,None),
+    "Dua Lipa": ("B",100,50,None),
+    "Megan Fox": ("B",100,50,None),
 }
+
 
 @dp.message(Command("market"))
 async def market(m:Message):
-    await m.reply("🛒 بازار سلبریتی\n\n🥇 S: 300 | Spin 150\n🥈 A: 200 | Spin 100\n🥉 B: 100 | Spin 50")
+    await m.reply("🛒 بازار سلبریتی\n\n🥇 S (300)\nAna de Armas\nMadison Beer\nGeorgina Rodriguez\nKylie Jenner\nSydney Sweeney\n\n🥈 A (200)\nOlivia Cooke\nScarlett Johansson\nSabrina Carpenter\nOlivia Rodrigo\nKendall Jenner\n\n🥉 B (100)\nKathryn Newton\nMargot Robbie\nTaylor Swift\nDua Lipa\nMegan Fox\n\n🎰 /spin s | a | b")
 
 @dp.message(Command("collection"))
 async def collection(m:Message):
@@ -171,7 +173,7 @@ async def buy(m:Message):
     if name not in CELEBS:
         return await m.reply("❌ سلبریتی پیدا نشد.")
 
-    tier,price,spin=CELEBS[name]
+    tier,price,spin,photo=CELEBS[name]
 
     user(m.from_user.id,m.from_user.full_name)
 
@@ -192,7 +194,10 @@ async def buy(m:Message):
     c.execute("INSERT INTO collections(user_id,celeb) VALUES(?,?)",(m.from_user.id,name))
     db.commit()
 
-    await m.reply(f"🎉 خرید موفق!\n\n👑 {name}\n💰 هزینه: {price} سانت")
+    if photo:
+        await m.bot.send_photo(m.chat.id, photo, caption=f"🎉 خرید موفق!\n\n👑 {name}")
+    else:
+        await m.reply(f"🎉 خرید موفق!\n\n👑 {name}")
 
 @dp.message(Command("spin"))
 async def spin(m:Message):
@@ -238,7 +243,11 @@ async def spin(m:Message):
     )
     db.commit()
 
-    await m.reply(f"🎰 اسپین موفق!\n\n👑 {celeb}")
+    photo=CELEBS[celeb][3]
+    if photo:
+        await m.bot.send_photo(m.chat.id, photo, caption=f"🎰 اسپین موفق!\n\n👑 {celeb}")
+    else:
+        await m.reply(f"🎰 اسپین موفق!\n\n👑 {celeb}")
 
 @dp.message(Command("collectors"))
 async def collectors(m:Message):
