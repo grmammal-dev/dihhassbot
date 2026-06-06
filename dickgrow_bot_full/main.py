@@ -292,7 +292,10 @@ async def collectors(m:Message):
         txt+=f"{i}. {name} — {total} سلبریتی\n"
 
     await m.reply(txt)
-
+@dp.message(F.photo)
+async def get_file_id(m: Message):
+    file_id = m.photo[-1].file_id
+    await m.reply(f"`{file_id}`")
 
 async def main():
     bot=Bot(TOKEN)
