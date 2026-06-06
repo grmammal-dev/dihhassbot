@@ -6,7 +6,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=1*60*60
+COOLDOWN=3*60*60
 ADMIN_ID=5952134460
 
 db=sqlite3.connect(DB)
@@ -32,7 +32,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,25) 
+    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -514,6 +514,22 @@ async def addcm(m:Message):
 
 async def main():
     bot=Bot(TOKEN)
+    from aiogram.types import BotCommand
+    await bot.set_my_commands([
+        BotCommand(command="grow", description="🌱 رشد کن"),
+        BotCommand(command="size", description="📊 اندازه و پروفایل"),
+        BotCommand(command="top", description="🏆 جدول بزرگان"),
+        BotCommand(command="market", description="🛒 بازار سلبریتی"),
+        BotCommand(command="collection", description="📚 کالکشن من"),
+        BotCommand(command="spin", description="🎰 اسپین سلبریتی"),
+        BotCommand(command="buy", description="🛍 خرید سلبریتی"),
+        BotCommand(command="sell", description="💸 فروش سلبریتی"),
+        BotCommand(command="list", description="🏪 فروش به دیگران"),
+        BotCommand(command="pvp", description="⚔️ دوئل"),
+        BotCommand(command="loan", description="💰 وام دادن"),
+        BotCommand(command="repay", description="✅ پرداخت بدهی"),
+        BotCommand(command="collectors", description="🏆 بهترین کلکسیونرها"),
+    ])
     await dp.start_polling(bot)
 
 if __name__=="__main__":
