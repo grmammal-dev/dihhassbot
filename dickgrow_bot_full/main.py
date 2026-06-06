@@ -272,18 +272,11 @@ async def collectors(m:Message):
 async def main():
     bot=Bot(TOKEN)
     await dp.start_polling(bot)
+    @dp.message(Command("testphoto"))
+async def testphoto(m: Message):
+    await m.reply("TEST WORKS")
 
 if __name__=="__main__":
     import asyncio
     asyncio.run(main())
 
-@dp.message(Command("testphoto"))
-async def testphoto(m: Message):
-    await m.bot.send_photo(
-        chat_id=m.chat.id,
-        photo="AgACAgQAAxkBAAEfCslqJF4aGLfY3nWNvS572NxehqwhiAACsBJrGzNwKVFiDAiqRzQvkgEAAwIAA3gAAzsE",
-        caption="Kylie Test"
-    )
-@dp.message(Command("testphoto"))
-async def testphoto(m: Message):
-    await m.reply("TEST WORKS")
