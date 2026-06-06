@@ -6,7 +6,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=3*60*60
+COOLDOWN=1*60*60
 
 db=sqlite3.connect(DB)
 c=db.cursor()
@@ -30,7 +30,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
+    delta=random.randint(5,25) 
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -136,21 +136,21 @@ db.commit()
 
 
 CELEBS = {
-    "Ana de Armas": ("S",300,150,"AgACAgQAAxkBAAEfCvFqJGF9gHeK-FdL3g8Dci7TQNEoggAC2Q1rG3tMKVFs57x8-y1feQEAAwIAA3gAAzsE"),
-    "Madison Beer": ("S",300,150,"AgACAgQAAxkBAAEfCv9qJGKST7WbNyfzkzP1WSoI1Iu2cgAC2w1rG3tMKVHiqz1XQ-d6zAEAAwIAA3gAAzsE"),
-    "Georgina Rodriguez": ("S",300,150,"AgACAgQAAxkBAAEfCvlqJGIXIENSIjrMMnLZoHS7AVxU1QAC2g1rG3tMKVFEyBOLad49wgEAAwIAA3gAAzsE"),
-    "Kylie Jenner": ("S",300,150,"AgACAgQAAxkBAAMEaiR_GxFC4NePI9QgN4e3v5laLHYAArASaxszcClR8_uYZ9Qw4XQBAAMCAAN4AAM7BA"),
-    "Sydney Sweeney": ("S",300,150,"AgACAgQAAxkBAAEfCtNqJF-RQinO1Aw9eVUcLjW1ChLosQAC1A1rG3tMKVFWcBdZYVaR7wEAAwIAA3kAAzsE"),
-    "Olivia Cooke": ("A",200,100,None),
-    "Scarlett Johansson": ("A",200,100,"AgACAgQAAxkBAAEfCstqJF7mY7jY4yYqDgFc3uWfgkGEeAAC0Q1rG3tMKVE3ZBCFgWdpKQEAAwIAA3kAAzsE"),
-    "Sabrina Carpenter": ("A",200,100,"AgACAgQAAxkBAAEfCuFqJGA8mGq78iqNtgsem5PSDj05LwAC1g1rG3tMKVG7fYDaui3BJAEAAwIAA3gAAzsE"),
-    "Olivia Rodrigo": ("A",200,100,"AgACAgQAAxkBAAEfCwFqJGL8g2q8giApiK3Jk-VXJ-lH6gAC3A1rG3tMKVFfIoq12SC3aQEAAwIAA3kAAzsE"),
-    "Kendall Jenner": ("A",200,100,"AgACAgQAAxkBAAMEaiR_GxFC4NePI9QgN4e3v5laLHYAArASaxszcClR8_uYZ9Qw4XQBAAMCAAN4AAM7BA"),
-    "Kathryn Newton": ("B",100,50,None),
-    "Margot Robbie": ("B",100,50,None),
-    "Taylor Swift": ("B",100,50,None),
-    "Dua Lipa": ("B",100,50,None),
-    "Megan Fox": ("B",100,50,None),
+    "Ana de Armas": ("S",300,150,"https://i.postimg.cc/5037v189/photo-5848289682741988825-x.jpg"),
+    "Madison Beer": ("S",300,150,"https://i.postimg.cc/c4Dp27g8/photo-5848289682741988827-x.jpg"),
+    "Georgina Rodriguez": ("S",300,150,"https://i.postimg.cc/J4hgNyT6/photo-5848289682741988826-x.jpg"),
+    "Kylie Jenner": ("S",300,150,"https://i.postimg.cc/XYYVy7Fw/photo-5848328955922944688-x.jpg"),
+    "Sydney Sweeney": ("S",300,150,"https://i.postimg.cc/zfw0Z5tP/photo-5848289682741988820-y.jpg"),
+    "Olivia Cooke": ("A",200,100,"https://i.postimg.cc/t4Q3XwVN/photo-5848289682741988811-y.jpg"),
+    "Scarlett Johansson": ("A",200,100,"https://i.postimg.cc/9f2YBKmW/photo-5848289682741988817-y.jpg"),
+    "Sabrina Carpenter": ("A",200,100,"https://i.postimg.cc/L6hCqc56/photo-5848289682741988822-x.jpg"),
+    "Olivia Rodrigo": ("A",200,100,"https://i.postimg.cc/jS1rw6tv/photo-5848289682741988828-y.jpg"),
+    "Kendall Jenner": ("A",200,100,"https://i.postimg.cc/Yqp7Jqdb/photo-5848289682741988829-y.jpg"),
+    "Kathryn Newton": ("B",100,50,"https://i.postimg.cc/J08ywVFN/Kathryn-Newton-4DX-2023.jpg"),
+    "Margot Robbie": ("B",100,50,"https://i.postimg.cc/rFmVDw59/b4965bcbfbe0e83ad658b74fa2c57cd0.jpg"),
+    "Taylor Swift": ("B",100,50,"https://i.postimg.cc/JhWC5rHq/images.jpg"),
+    "Dua Lipa": ("B",100,50,"https://i.postimg.cc/Fz62dNQS/Dua-Lipa-with-Warner-Music.jpg"),
+    "Megan Fox": ("B",100,50,"https://i.postimg.cc/W4VxJ5xg/Megan-Fox.jpg"),
 }
 
 
@@ -291,15 +291,12 @@ async def collectors(m:Message):
     for i,(name,total) in enumerate(rows,1):
         txt+=f"{i}. {name} — {total} سلبریتی\n"
 
-@dp.message(F.photo)
-async def get_file_id(m: Message):
-    file_id = m.photo[-1].file_id
-    await m.reply(f"`{file_id}`")
+    await m.reply(txt)
+
 
 async def main():
     bot=Bot(TOKEN)
     await dp.start_polling(bot)
-
 
 if __name__=="__main__":
     import asyncio
