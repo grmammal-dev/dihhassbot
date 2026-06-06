@@ -6,7 +6,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=0.5*60*60
+COOLDOWN=1*60*60
 ADMIN_ID=5952134460
 
 db=sqlite3.connect(DB)
@@ -14,6 +14,7 @@ c=db.cursor()
 c.execute("CREATE TABLE IF NOT EXISTS users(user_id INTEGER PRIMARY KEY,name TEXT,size INTEGER DEFAULT 0,debt INTEGER DEFAULT 0,last_grow INTEGER DEFAULT 0)")
 c.execute("CREATE TABLE IF NOT EXISTS battles(id INTEGER PRIMARY KEY AUTOINCREMENT,creator INTEGER,bet INTEGER,active INTEGER DEFAULT 1)")
 c.execute("CREATE TABLE IF NOT EXISTS loans(lender_id INTEGER, borrower_id INTEGER, amount INTEGER)")
+c.execute("CREATE TABLE IF NOT EXISTS listings(id INTEGER PRIMARY KEY AUTOINCREMENT, seller_id INTEGER, celeb TEXT, price INTEGER, active INTEGER DEFAULT 1)")
 db.commit()
 
 def user(uid,name):
@@ -31,7 +32,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,25)
+    delta=random.randint(5,25) 
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -333,6 +334,79 @@ async def collectors(m:Message):
 
     await m.reply(txt)
 
+
+@dp.message(Command("list"))
+async def list_celeb(m:Message):
+    parts = m.text.split(None, 1)
+    if len(parts) < 2:
+        return await m.reply("Usage: /list [نام] [قیمت]\nمثال: /list Kylie Jenner 500")
+    try:
+        rest = parts[1].rsplit(None, 1)
+        name = rest[0].strip()
+        price = int(rest[1])
+    except:
+        return await m.reply("Usage: /list [نام] [قیمت]\nمثال: /list Kylie Jenner 500")
+    if name not in CELEBS:
+        return await m.reply("❌ سلبریتی پیدا نشد.")
+    user(m.from_user.id, m.from_user.full_name)
+    owned = c.execute("SELECT 1 FROM collections WHERE user_id=? AND celeb=?", (m.from_user.id, name)).fetchone()
+    if not owned:
+        return await m.reply("❌ این سلبریتی رو نداری!")
+    # cancel any previous listing for this celeb
+    c.execute("UPDATE listings SET active=0 WHERE seller_id=? AND celeb=?", (m.from_user.id, name))
+    cur = c.execute("INSERT INTO listings(seller_id, celeb, price) VALUES(?,?,?)", (m.from_user.id, name, price))
+    db.commit()
+    lid = cur.lastrowid
+    tier, orig_price, spin, photo = CELEBS[name]
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=f"🛒 خرید به قیمت {price} سانت", callback_data=f"buyoff:{lid}")
+    ]])
+    caption = (
+        f"🏪 فروش سلبریتی!\n\n"
+        f"👑 {name}\n"
+        f"💰 قیمت: {price} سانت\n"
+        f"👤 فروشنده: {m.from_user.full_name}"
+    )
+    if photo:
+        try:
+            await m.bot.send_photo(m.chat.id, photo, caption=caption, reply_markup=kb)
+            return
+        except:
+            pass
+    await m.reply(caption, reply_markup=kb)
+
+@dp.callback_query(F.data.startswith("buyoff:"))
+async def buyoff(q: CallbackQuery):
+    lid = int(q.data.split(":")[1])
+    row = c.execute("SELECT seller_id, celeb, price, active FROM listings WHERE id=?", (lid,)).fetchone()
+    if not row or row[3] == 0:
+        return await q.answer("❌ این آگهی دیگه فعال نیست!", show_alert=True)
+    seller_id, name, price, _ = row
+    buyer_id = q.from_user.id
+    if buyer_id == seller_id:
+        return await q.answer("❌ نمیتونی از خودت بخری!", show_alert=True)
+    user(buyer_id, q.from_user.full_name)
+    buyer_size = c.execute("SELECT size FROM users WHERE user_id=?", (buyer_id,)).fetchone()[0]
+    if buyer_size < price:
+        return await q.answer("❌ سانت کافی نداری!", show_alert=True)
+    # transfer
+    c.execute("UPDATE users SET size=size-? WHERE user_id=?", (price, buyer_id))
+    c.execute("UPDATE users SET size=size+? WHERE user_id=?", (price, seller_id))
+    c.execute("DELETE FROM collections WHERE user_id=? AND celeb=?", (seller_id, name))
+    c.execute("INSERT INTO collections(user_id, celeb) VALUES(?,?)", (buyer_id, name))
+    c.execute("UPDATE listings SET active=0 WHERE id=?", (lid,))
+    db.commit()
+    seller_name = c.execute("SELECT name FROM users WHERE user_id=?", (seller_id,)).fetchone()[0]
+    await q.message.edit_caption(
+        caption=(
+            f"✅ معامله انجام شد!\n\n"
+            f"👑 {name}\n"
+            f"💰 قیمت: {price} سانت\n"
+            f"🛒 خریدار: {q.from_user.full_name}\n"
+            f"💸 فروشنده: {seller_name}"
+        )
+    )
+    await q.answer("✅ خرید موفق!")
 
 @dp.message(Command("sell"))
 async def sell(m:Message):
