@@ -1,3 +1,4 @@
+
 import os, sqlite3, random, time
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
@@ -154,33 +155,33 @@ CELEBS = {
 
 
 @dp.message(Command("market"))
-async def market(m: Message):
+async def market(m:Message):
     tier_info = {
         "S": ("🥇 Tier S", 300, 150),
         "A": ("🥈 Tier A", 200, 100),
         "B": ("🥉 Tier B", 100, 50),
     }
-
-    # Group celebs by tier
     tiers = {"S": [], "A": [], "B": []}
     for name, (tier, price, spin, photo) in CELEBS.items():
         tiers[tier].append((name, photo))
-
     for tier_key, (label, buy_price, spin_price) in tier_info.items():
         celebs = tiers[tier_key]
-
-        # Send header message for the tier
-        header = f"{label} — خرید: {buy_price} سانت | اسپین: {spin_price} سانت\n\n"
-        header += "\n".join(f"👑 {name}" for name, _ in celebs)
-        header += f"\n\n🎰 اسپین این تیر: /spin {tier_key.lower()}"
-
-        # Find first celeb with a photo to represent the tier
-        tier_photo = next((photo for _, photo in celebs if photo), None)
-
+        header = (
+            f"{label} — خرید: {buy_price} سانت | اسپین: {spin_price} سانت\n\n"
+            + "\n".join(f"👑 {name}" for name, _ in celebs)
+            + f"\n\n🎰 اسپین: /spin {tier_key.lower()}"
+            + f"\n🛒 خرید: /buy نام"
+        )
+        tier_photo = next((p for _, p in celebs if p), None)
+        sent = False
         if tier_photo:
-            await m.bot.send_photo(m.chat.id, tier_photo, caption=header)
-        else:
-            await m.reply(header)
+            try:
+                await m.bot.send_photo(m.chat.id, tier_photo, caption=header)
+                sent = True
+            except Exception:
+                pass
+        if not sent:
+            await m.bot.send_message(m.chat.id, header)
 
 @dp.message(Command("collection"))
 async def collection(m:Message):
