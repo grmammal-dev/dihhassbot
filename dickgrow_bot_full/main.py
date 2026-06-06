@@ -30,7 +30,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,25)
+    delta=random.randint(5,25) 
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -156,22 +156,21 @@ CELEBS = {
 
 @dp.message(Command("market"))
 async def market(m:Message):
-    tier_headers = {
-        "S": "🥇 Tier S — خرید: 300 سانت | اسپین: 150 سانت",
-        "A": "🥈 Tier A — خرید: 200 سانت | اسپین: 100 سانت",
-        "B": "🥉 Tier B — خرید: 100 سانت | اسپین: 50 سانت",
-    }
-    sent_header = set()
+    txt = "🛒 بازار سلبریتی\n\n"
+    txt += "🥇 Tier S — خرید: 300 سانت | اسپین: 150 سانت\n"
     for name, (tier, price, spin, photo) in CELEBS.items():
-        caption = ""
-        if tier not in sent_header:
-            caption += f"{tier_headers[tier]}\n\n"
-            sent_header.add(tier)
-        caption += f"👑 {name}\n💰 خرید: {price} سانت\n🛒 /buy {name}"
-        try:
-            await m.bot.send_photo(m.chat.id, photo, caption=caption)
-        except Exception:
-            await m.bot.send_message(m.chat.id, caption)
+        if tier == "S":
+            txt += f"  👑 {name} — /buy {name}\n"
+    txt += "\n🥈 Tier A — خرید: 200 سانت | اسپین: 100 سانت\n"
+    for name, (tier, price, spin, photo) in CELEBS.items():
+        if tier == "A":
+            txt += f"  👑 {name} — /buy {name}\n"
+    txt += "\n🥉 Tier B — خرید: 100 سانت | اسپین: 50 سانت\n"
+    for name, (tier, price, spin, photo) in CELEBS.items():
+        if tier == "B":
+            txt += f"  👑 {name} — /buy {name}\n"
+    txt += "\n🎰 اسپین: /spin s | a | b"
+    await m.reply(txt)
 
 @dp.message(Command("collection"))
 async def collection(m:Message):
