@@ -280,7 +280,7 @@ if __name__=="__main__":
 @dp.message(Command("testphoto"))
 async def testphoto(m: Message):
     await m.bot.send_photo(
-        m.chat.id,
-        "AgACAgQAAxkBAAEfCvFqJGF9gHeK-FdL3g8Dci7TQNEoggAC2Q1rG3tMKVFs57x8-y1feQEAAwIAA3gAAzsE"
+        chat_id=m.chat.id,
+        photo="AgACAgQAAxkBAAEfCslqJF4aGLfY3nWNvS572NxehqwhiAACsBJrGzNwKVFiDAiqRzQvkgEAAwIAA3gAAzsE",
+        caption="Kylie Test"
     )
-    
