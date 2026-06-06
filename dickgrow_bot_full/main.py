@@ -276,3 +276,10 @@ async def main():
 if __name__=="__main__":
     import asyncio
     asyncio.run(main())
+
+@dp.message(Command("testphoto"))
+async def testphoto(m: Message):
+    await m.bot.send_photo(
+        m.chat.id,
+        "AgACAgQAAxkBAAEfCvFqJGF9gHeK-FdL3g8Dci7TQNEoggAC2Q1rG3tMKVFs57x8-y1feQEAAwIAA3gAAzsE"
+    )
