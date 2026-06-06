@@ -514,8 +514,8 @@ async def addcm(m:Message):
 
 async def main():
     bot=Bot(TOKEN)
-    from aiogram.types import BotCommand
-    await bot.set_my_commands([
+    from aiogram.types import BotCommand, BotCommandScopeAllGroupChats, BotCommandScopeDefault
+    commands = [
         BotCommand(command="grow", description="🌱 رشد کن"),
         BotCommand(command="size", description="📊 اندازه و پروفایل"),
         BotCommand(command="top", description="🏆 جدول بزرگان"),
@@ -529,7 +529,9 @@ async def main():
         BotCommand(command="loan", description="💰 وام دادن"),
         BotCommand(command="repay", description="✅ پرداخت بدهی"),
         BotCommand(command="collectors", description="🏆 بهترین کلکسیونرها"),
-    ])
+    ]
+    await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
+    await bot.set_my_commands(commands, scope=BotCommandScopeAllGroupChats())
     await dp.start_polling(bot)
 
 if __name__=="__main__":
