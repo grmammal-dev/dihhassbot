@@ -145,7 +145,7 @@ CELEBS = {
     "Scarlett Johansson": ("A",200,100,"AgACAgQAAxkBAAEfCstqJF7mY7jY4yYqDgFc3uWfgkGEeAAC0Q1rG3tMKVE3ZBCFgWdpKQEAAwIAA3kAAzsE"),
     "Sabrina Carpenter": ("A",200,100,"AgACAgQAAxkBAAEfCuFqJGA8mGq78iqNtgsem5PSDj05LwAC1g1rG3tMKVG7fYDaui3BJAEAAwIAA3gAAzsE"),
     "Olivia Rodrigo": ("A",200,100,"AgACAgQAAxkBAAEfCwFqJGL8g2q8giApiK3Jk-VXJ-lH6gAC3A1rG3tMKVFfIoq12SC3aQEAAwIAA3kAAzsE"),
-    "Kendall Jenner": ("A",200,100,"AgACAgQAAxkBAAEfCwNqJGOYTT7JYWQuSqGtj9atlc3T3AAC3Q1rG3tMKVEHQ57PLiwgpgEAAwIAA3kAAzsE"),
+    "Kendall Jenner": ("A",200,100,"AgACAgQAAxkBAAMEaiR_GxFC4NePI9QgN4e3v5laLHYAArASaxszcClR8_uYZ9Qw4XQBAAMCAAN4AAM7BA"),
     "Kathryn Newton": ("B",100,50,None),
     "Margot Robbie": ("B",100,50,None),
     "Taylor Swift": ("B",100,50,None),
