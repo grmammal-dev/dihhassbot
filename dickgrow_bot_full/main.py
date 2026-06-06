@@ -6,7 +6,8 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=3*60*60
+COOLDOWN=0.5*60*60
+ADMIN_ID=5952134460
 
 db=sqlite3.connect(DB)
 c=db.cursor()
@@ -30,7 +31,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
+    delta=random.randint(5,25)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -244,12 +245,15 @@ async def buy(m:Message):
         return await m.reply("💸 سانت کافی نداری!")
 
     owned=c.execute(
-        "SELECT 1 FROM collections WHERE user_id=? AND celeb=?",
-        (m.from_user.id,name)
+        "SELECT user_id FROM collections WHERE celeb=?",
+        (name,)
     ).fetchone()
 
     if owned:
-        return await m.reply("📚 این سلبریتی رو داری!")
+        if owned[0] == m.from_user.id:
+            return await m.reply("📚 این سلبریتی رو داری!")
+        owner_name=c.execute("SELECT name FROM users WHERE user_id=?",(owned[0],)).fetchone()[0]
+        return await m.reply(f"❌ این سلبریتی قبلاً توسط {owner_name} خریداری شده!")
 
     c.execute("UPDATE users SET size=size-? WHERE user_id=?",(price,m.from_user.id))
     c.execute("INSERT INTO collections(user_id,celeb) VALUES(?,?)",(m.from_user.id,name))
@@ -329,6 +333,42 @@ async def collectors(m:Message):
 
     await m.reply(txt)
 
+
+@dp.message(Command("sell"))
+async def sell(m:Message):
+    name=m.text.replace("/sell","",1).strip()
+    if name not in CELEBS:
+        return await m.reply("❌ سلبریتی پیدا نشد.")
+    user(m.from_user.id,m.from_user.full_name)
+    owned=c.execute(
+        "SELECT 1 FROM collections WHERE user_id=? AND celeb=?",
+        (m.from_user.id,name)
+    ).fetchone()
+    if not owned:
+        return await m.reply("❌ این سلبریتی رو نداری!")
+    tier,price,spin,photo=CELEBS[name]
+    c.execute("DELETE FROM collections WHERE user_id=? AND celeb=?",(m.from_user.id,name))
+    c.execute("UPDATE users SET size=size+? WHERE user_id=?",(price,m.from_user.id))
+    db.commit()
+    await m.reply(f"💸 فروش موفق!\n\n👑 {name}\n💰 {price} سانت به حسابت اضافه شد!")
+
+@dp.message(Command("addcm"))
+async def addcm(m:Message):
+    if m.from_user.id != ADMIN_ID:
+        return await m.reply("❌ دسترسی ندارید!")
+    try:
+        parts = m.text.split()
+        amount = int(parts[1])
+    except:
+        return await m.reply("Usage: /addcm [amount] (reply to a user)")
+    if not m.reply_to_message:
+        return await m.reply("Reply to a user to add cm.")
+    target = m.reply_to_message.from_user.id
+    user(target, m.reply_to_message.from_user.full_name)
+    c.execute("UPDATE users SET size=size+? WHERE user_id=?", (amount, target))
+    db.commit()
+    new_size = c.execute("SELECT size FROM users WHERE user_id=?", (target,)).fetchone()[0]
+    await m.reply(f"✅ {amount} سانت به {m.reply_to_message.from_user.full_name} اضافه شد!\n📏 اندازه جدید: {new_size} سانت")
 
 async def main():
     bot=Bot(TOKEN)
