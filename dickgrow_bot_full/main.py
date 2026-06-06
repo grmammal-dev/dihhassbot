@@ -1,4 +1,3 @@
-
 import os, sqlite3, random, time
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
@@ -6,7 +5,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=1*60*60
+COOLDOWN=3*60*60
 
 db=sqlite3.connect(DB)
 c=db.cursor()
@@ -30,7 +29,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,25)
+    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -155,8 +154,33 @@ CELEBS = {
 
 
 @dp.message(Command("market"))
-async def market(m:Message):
-    await m.reply("🛒 بازار سلبریتی\n\n🥇 S (300)\nAna de Armas\nMadison Beer\nGeorgina Rodriguez\nKylie Jenner\nSydney Sweeney\n\n🥈 A (200)\nOlivia Cooke\nScarlett Johansson\nSabrina Carpenter\nOlivia Rodrigo\nKendall Jenner\n\n🥉 B (100)\nKathryn Newton\nMargot Robbie\nTaylor Swift\nDua Lipa\nMegan Fox\n\n🎰 /spin s | a | b")
+async def market(m: Message):
+    tier_info = {
+        "S": ("🥇 Tier S", 300, 150),
+        "A": ("🥈 Tier A", 200, 100),
+        "B": ("🥉 Tier B", 100, 50),
+    }
+
+    # Group celebs by tier
+    tiers = {"S": [], "A": [], "B": []}
+    for name, (tier, price, spin, photo) in CELEBS.items():
+        tiers[tier].append((name, photo))
+
+    for tier_key, (label, buy_price, spin_price) in tier_info.items():
+        celebs = tiers[tier_key]
+
+        # Send header message for the tier
+        header = f"{label} — خرید: {buy_price} سانت | اسپین: {spin_price} سانت\n\n"
+        header += "\n".join(f"👑 {name}" for name, _ in celebs)
+        header += f"\n\n🎰 اسپین این تیر: /spin {tier_key.lower()}"
+
+        # Find first celeb with a photo to represent the tier
+        tier_photo = next((photo for _, photo in celebs if photo), None)
+
+        if tier_photo:
+            await m.bot.send_photo(m.chat.id, tier_photo, caption=header)
+        else:
+            await m.reply(header)
 
 @dp.message(Command("collection"))
 async def collection(m:Message):
