@@ -6,7 +6,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN = 1 * 60 * 60
+COOLDOWN=3*60*60
 
 db=sqlite3.connect(DB)
 c=db.cursor()
@@ -30,7 +30,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,20)
+    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -128,6 +128,137 @@ async def accept(q:CallbackQuery):
     db.commit()
     winner_name=c.execute("SELECT name FROM users WHERE user_id=?",(winner,)).fetchone()[0]
     await q.message.edit_text(f"🏆 پایان دوئل!\n\n👑 برنده: {winner_name}\n💰 جایزه: {bet} سانت\n\n😂 بازنده باید بیشتر تمرین کنه!")
+
+
+# ===== Celebrity Collection System =====
+c.execute("CREATE TABLE IF NOT EXISTS collections(user_id INTEGER, celeb TEXT)")
+db.commit()
+
+CELEBS = {
+    "Ana de Armas": ("S",300,150),
+    "Madison Beer": ("S",300,150),
+    "Georgina Rodriguez": ("S",300,150),
+    "Kylie Jenner": ("S",300,150),
+    "Sydney Sweeney": ("S",300,150),
+    "Olivia Cooke": ("A",200,100),
+    "Scarlett Johansson": ("A",200,100),
+    "Sabrina Carpenter": ("A",200,100),
+    "Olivia Rodrigo": ("A",200,100),
+    "Kendall Jenner": ("A",200,100),
+    "Kathryn Newton": ("B",100,50),
+    "Margot Robbie": ("B",100,50),
+    "Taylor Swift": ("B",100,50),
+    "Dua Lipa": ("B",100,50),
+    "Megan Fox": ("B",100,50),
+}
+
+@dp.message(Command("market"))
+async def market(m:Message):
+    await m.reply("🛒 بازار سلبریتی\n\n🥇 S: 300 | Spin 150\n🥈 A: 200 | Spin 100\n🥉 B: 100 | Spin 50")
+
+@dp.message(Command("collection"))
+async def collection(m:Message):
+    rows=c.execute("SELECT celeb FROM collections WHERE user_id=?",(m.from_user.id,)).fetchall()
+    if not rows:
+        return await m.reply("📚 هنوز چیزی نداری.")
+    await m.reply("📚 کالکشن شما\n\n" + "\n".join("👑 "+r[0] for r in rows))
+
+
+@dp.message(Command("buy"))
+async def buy(m:Message):
+    name=m.text.replace("/buy","",1).strip()
+
+    if name not in CELEBS:
+        return await m.reply("❌ سلبریتی پیدا نشد.")
+
+    tier,price,spin=CELEBS[name]
+
+    user(m.from_user.id,m.from_user.full_name)
+
+    size=c.execute("SELECT size FROM users WHERE user_id=?",(m.from_user.id,)).fetchone()[0]
+
+    if size<price:
+        return await m.reply("💸 سانت کافی نداری!")
+
+    owned=c.execute(
+        "SELECT 1 FROM collections WHERE user_id=? AND celeb=?",
+        (m.from_user.id,name)
+    ).fetchone()
+
+    if owned:
+        return await m.reply("📚 این سلبریتی رو داری!")
+
+    c.execute("UPDATE users SET size=size-? WHERE user_id=?",(price,m.from_user.id))
+    c.execute("INSERT INTO collections(user_id,celeb) VALUES(?,?)",(m.from_user.id,name))
+    db.commit()
+
+    await m.reply(f"🎉 خرید موفق!\n\n👑 {name}\n💰 هزینه: {price} سانت")
+
+@dp.message(Command("spin"))
+async def spin(m:Message):
+    try:
+        tier=m.text.split()[1].upper()
+    except:
+        return await m.reply("استفاده: /spin s | a | b")
+
+    prices={"S":150,"A":100,"B":50}
+
+    if tier not in prices:
+        return await m.reply("Tier باید s یا a یا b باشد.")
+
+    cost=prices[tier]
+
+    user(m.from_user.id,m.from_user.full_name)
+
+    size=c.execute("SELECT size FROM users WHERE user_id=?",(m.from_user.id,)).fetchone()[0]
+
+    if size<cost:
+        return await m.reply("💸 سانت کافی نداری!")
+
+    pool=[n for n,v in CELEBS.items() if v[0]==tier]
+    celeb=random.choice(pool)
+
+    c.execute("UPDATE users SET size=size-? WHERE user_id=?",(cost,m.from_user.id))
+
+    owned=c.execute(
+        "SELECT 1 FROM collections WHERE user_id=? AND celeb=?",
+        (m.from_user.id,celeb)
+    ).fetchone()
+
+    if owned:
+        c.execute("UPDATE users SET size=size+? WHERE user_id=?",(cost,m.from_user.id))
+        db.commit()
+        return await m.reply(
+            f"🔄 تکراری بود!\n\n👑 {celeb}\n💰 کل {cost} سانت برگشت داده شد."
+        )
+
+    c.execute(
+        "INSERT INTO collections(user_id,celeb) VALUES(?,?)",
+        (m.from_user.id,celeb)
+    )
+    db.commit()
+
+    await m.reply(f"🎰 اسپین موفق!\n\n👑 {celeb}")
+
+@dp.message(Command("collectors"))
+async def collectors(m:Message):
+    rows=c.execute("""
+        SELECT users.name,COUNT(collections.celeb) AS total
+        FROM users
+        LEFT JOIN collections
+        ON users.user_id=collections.user_id
+        GROUP BY users.user_id
+        ORDER BY total DESC
+        LIMIT 10
+    """).fetchall()
+
+    txt="🏆 بهترین کلکسیونرها\n\n"
+
+    for i,(name,total) in enumerate(rows,1):
+        txt+=f"{i}. {name} — {total} سلبریتی\n"
+
+    await m.reply(txt)
+
 
 async def main():
     bot=Bot(TOKEN)
