@@ -1,4 +1,3 @@
-
 import os, sqlite3, random, time
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
@@ -6,7 +5,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=1*60*60
+COOLDOWN=3*60*60
 ADMIN_ID=5952134460
 
 db=sqlite3.connect(DB)
@@ -33,7 +32,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,20)
+    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -523,8 +522,7 @@ async def gloan(m:Message):
     try:
         amt = int(m.text.split()[1])
     except:
-        return await m.reply("Usage: /gloan [مقدار]
-مثال: /gloan 50")
+        return await m.reply("Usage: /gloan [مقدار]\nمثال: /gloan 50")
     if amt < 1 or amt > 100:
         return await m.reply("❌ حداکثر وام از بازی 100 سانته!")
     user(m.from_user.id, m.from_user.full_name)
@@ -532,8 +530,7 @@ async def gloan(m:Message):
     if existing:
         due = existing[1]
         rem = (due - int(time.time())) // 3600
-        return await m.reply(f"❌ قبلاً {existing[0]} سانت وام داری!
-⏳ {rem} ساعت تا موعد پرداخت")
+        return await m.reply(f"❌ قبلاً {existing[0]} سانت وام داری!\n⏳ {rem} ساعت تا موعد پرداخت")
     due_time = int(time.time()) + 24*60*60
     c.execute("INSERT OR REPLACE INTO game_loans(user_id, amount, due_time) VALUES(?,?,?)", (m.from_user.id, amt, due_time))
     c.execute("UPDATE users SET size=size+? WHERE user_id=?", (amt, m.from_user.id))
