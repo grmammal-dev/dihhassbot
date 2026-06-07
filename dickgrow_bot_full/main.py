@@ -1,4 +1,3 @@
-
 import os, sqlite3, random, time
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
@@ -6,7 +5,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=1*60*60
+COOLDOWN=3*60*60
 ADMIN_ID=5952134460
 
 db=sqlite3.connect(DB)
@@ -32,7 +31,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,25) 
+    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -133,7 +132,7 @@ async def accept(q:CallbackQuery):
 
 
 # ===== Celebrity Collection System =====
-c.execute("CREATE TABLE IF NOT EXISTS collections(user_id INTEGER, celeb TEXT)")
+c.execute("CREATE TABLE IF NOT EXISTS collections(user_id INTEGER, celeb TEXT, paid_price INTEGER DEFAULT 0)")
 db.commit()
 
 
@@ -223,14 +222,23 @@ async def market_page_nav(q: CallbackQuery):
 
 @dp.message(Command("collection"))
 async def collection(m:Message):
-    user(m.from_user.id, m.from_user.full_name)
-    rows = c.execute("SELECT celeb FROM collections WHERE user_id=?", (m.from_user.id,)).fetchall()
-    if not rows:
-        return await m.reply("📚 هنوز چیزی نداری.")
-    celebs = [r[0] for r in rows]
-    await send_collection_page(m.chat.id, m.from_user.id, celebs, 0, m.bot)
+    if m.reply_to_message:
+        target = m.reply_to_message.from_user
+        user(target.id, target.full_name)
+        rows = c.execute("SELECT celeb FROM collections WHERE user_id=?", (target.id,)).fetchall()
+        if not rows:
+            return await m.reply(f"📚 {target.full_name} هنوز چیزی نداره.")
+        celebs = [r[0] for r in rows]
+        await send_collection_page(m.chat.id, target.id, celebs, 0, m.bot, viewer_id=m.from_user.id)
+    else:
+        user(m.from_user.id, m.from_user.full_name)
+        rows = c.execute("SELECT celeb FROM collections WHERE user_id=?", (m.from_user.id,)).fetchall()
+        if not rows:
+            return await m.reply("📚 هنوز چیزی نداری.")
+        celebs = [r[0] for r in rows]
+        await send_collection_page(m.chat.id, m.from_user.id, celebs, 0, m.bot, viewer_id=m.from_user.id)
 
-async def send_collection_page(chat_id, owner_id, celebs, page, bot):
+async def send_collection_page(chat_id, owner_id, celebs, page, bot, viewer_id=None):
     name = celebs[page]
     tier, price, spin, photo = CELEBS[name]
     tier_label = {"S": "🥇 S", "A": "🥈 A", "B": "🥉 B"}[tier]
@@ -261,8 +269,7 @@ async def collection_nav(q: CallbackQuery):
     _, owner_id, page = q.data.split(":")
     owner_id = int(owner_id)
     page = int(page)
-    if q.from_user.id != owner_id:
-        return await q.answer("❌ این کالکشن مال تو نیست!", show_alert=True)
+    # allow anyone to browse
     rows = c.execute("SELECT celeb FROM collections WHERE user_id=?", (owner_id,)).fetchall()
     celebs = [r[0] for r in rows]
     if page >= len(celebs):
@@ -325,7 +332,7 @@ async def buy(m:Message):
         return await m.reply(f"❌ این سلبریتی قبلاً توسط {owner_name} خریداری شده!")
 
     c.execute("UPDATE users SET size=size-? WHERE user_id=?",(price,m.from_user.id))
-    c.execute("INSERT INTO collections(user_id,celeb) VALUES(?,?)",(m.from_user.id,name))
+    c.execute("INSERT INTO collections(user_id,celeb,paid_price) VALUES(?,?,?)",(m.from_user.id,name,price))
     db.commit()
 
     if photo:
@@ -372,8 +379,8 @@ async def spin(m:Message):
         )
 
     c.execute(
-        "INSERT INTO collections(user_id,celeb) VALUES(?,?)",
-        (m.from_user.id,celeb)
+        "INSERT INTO collections(user_id,celeb,paid_price) VALUES(?,?,?)",
+        (m.from_user.id,celeb,cost)
     )
     db.commit()
 
@@ -483,16 +490,16 @@ async def sell(m:Message):
         return await m.reply("❌ سلبریتی پیدا نشد.")
     user(m.from_user.id,m.from_user.full_name)
     owned=c.execute(
-        "SELECT 1 FROM collections WHERE user_id=? AND celeb=?",
+        "SELECT paid_price FROM collections WHERE user_id=? AND celeb=?",
         (m.from_user.id,name)
     ).fetchone()
     if not owned:
         return await m.reply("❌ این سلبریتی رو نداری!")
-    tier,price,spin,photo=CELEBS[name]
+    paid=owned[0]
     c.execute("DELETE FROM collections WHERE user_id=? AND celeb=?",(m.from_user.id,name))
-    c.execute("UPDATE users SET size=size+? WHERE user_id=?",(price,m.from_user.id))
+    c.execute("UPDATE users SET size=size+? WHERE user_id=?",(paid,m.from_user.id))
     db.commit()
-    await m.reply(f"💸 فروش موفق!\n\n👑 {name}\n💰 {price} سانت به حسابت اضافه شد!")
+    await m.reply(f"💸 فروش موفق!\n\n👑 {name}\n💰 {paid} سانت به حسابت اضافه شد!")
 
 @dp.message(Command("addcm"))
 async def addcm(m:Message):
