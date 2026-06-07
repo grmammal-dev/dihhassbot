@@ -12,8 +12,9 @@ db=sqlite3.connect(DB)
 c=db.cursor()
 c.execute("CREATE TABLE IF NOT EXISTS users(user_id INTEGER PRIMARY KEY,name TEXT,size INTEGER DEFAULT 0,debt INTEGER DEFAULT 0,last_grow INTEGER DEFAULT 0)")
 c.execute("CREATE TABLE IF NOT EXISTS battles(id INTEGER PRIMARY KEY AUTOINCREMENT,creator INTEGER,bet INTEGER,active INTEGER DEFAULT 1)")
-c.execute("CREATE TABLE IF NOT EXISTS loans(lender_id INTEGER, borrower_id INTEGER, amount INTEGER)")
+c.execute("CREATE TABLE IF NOT EXISTS loans(lender_id INTEGER, borrower_id INTEGER, amount INTEGER, loan_time INTEGER DEFAULT 0)")
 c.execute("CREATE TABLE IF NOT EXISTS listings(id INTEGER PRIMARY KEY AUTOINCREMENT, seller_id INTEGER, celeb TEXT, price INTEGER, active INTEGER DEFAULT 1)")
+c.execute("CREATE TABLE IF NOT EXISTS game_loans(user_id INTEGER PRIMARY KEY, amount INTEGER, due_time INTEGER)")
 db.commit()
 
 def user(uid,name):
@@ -70,12 +71,26 @@ async def loan(m:Message):
     if s<amt:
         return await m.reply("Not enough cm.")
 
+    day_ago = int(time.time()) - 24*60*60
+    borrowed_today = c.execute(
+        "SELECT COALESCE(SUM(amount),0) FROM loans WHERE borrower_id=? AND loan_time>?",
+        (borrower, day_ago)
+    ).fetchone()[0]
+
+    if borrowed_today + amt > 50:
+        remaining = max(0, 50 - borrowed_today)
+        return await m.reply(
+            f"❌ این کاربر امروز {borrowed_today} سانت وام گرفته!\n"
+            f"حداکثر روزانه ۵۰ سانته.\n"
+            f"{'دیگه نمیتونه وام بگیره!' if remaining == 0 else f'فقط {remaining} سانت دیگه میتونه بگیره.'}"
+        )
+
     c.execute("UPDATE users SET size=size-? WHERE user_id=?",(amt,lender))
     c.execute("UPDATE users SET size=size+? WHERE user_id=?",(amt,borrower))
-    c.execute("INSERT INTO loans VALUES(?,?,?)",(lender,borrower,amt))
+    c.execute("INSERT INTO loans VALUES(?,?,?)",(lender,borrower,int(time.time())))
     db.commit()
 
-    await m.reply(f"💸 وام انجام شد!\n\nمقدار: {amt} سانت")
+    await m.reply(f"💸 وام انجام شد!\n\nمقدار: {amt} سانت\n📊 این کاربر امروز {borrowed_today+amt}/50 سانت وام گرفته")
 
 @dp.message(Command("repay"))
 async def repay(m:Message):
@@ -367,20 +382,21 @@ async def spin(m:Message):
     c.execute("UPDATE users SET size=size-? WHERE user_id=?",(cost,m.from_user.id))
 
     owned=c.execute(
-        "SELECT 1 FROM collections WHERE user_id=? AND celeb=?",
-        (m.from_user.id,celeb)
+        "SELECT user_id FROM collections WHERE celeb=?",
+        (celeb,)
     ).fetchone()
 
     if owned:
         c.execute("UPDATE users SET size=size+? WHERE user_id=?",(cost,m.from_user.id))
         db.commit()
-        return await m.reply(
-            f"🔄 تکراری بود!\n\n👑 {celeb}\n💰 کل {cost} سانت برگشت داده شد."
-        )
+        if owned[0] == m.from_user.id:
+            return await m.reply(f"🔄 این سلبریتی رو قبلاً داری!\n\n👑 {celeb}\n💰 {cost} سانت برگشت داده شد.")
+        owner_name=c.execute("SELECT name FROM users WHERE user_id=?",(owned[0],)).fetchone()[0]
+        return await m.reply(f"🔄 این سلبریتی قبلاً توسط {owner_name} خریداری شده!\n\n👑 {celeb}\n💰 {cost} سانت برگشت داده شد.")
 
     c.execute(
         "INSERT INTO collections(user_id,celeb,paid_price) VALUES(?,?,?)",
-        (m.from_user.id,celeb,cost)
+        (m.from_user.id,celeb,cost//2)
     )
     db.commit()
 
@@ -501,6 +517,88 @@ async def sell(m:Message):
     db.commit()
     await m.reply(f"💸 فروش موفق!\n\n👑 {name}\n💰 {paid} سانت به حسابت اضافه شد!")
 
+@dp.message(Command("gloan"))
+async def gloan(m:Message):
+    try:
+        amt = int(m.text.split()[1])
+    except:
+        return await m.reply("Usage: /gloan [مقدار]
+مثال: /gloan 50")
+    if amt < 1 or amt > 100:
+        return await m.reply("❌ حداکثر وام از بازی 100 سانته!")
+    user(m.from_user.id, m.from_user.full_name)
+    existing = c.execute("SELECT amount, due_time FROM game_loans WHERE user_id=?", (m.from_user.id,)).fetchone()
+    if existing:
+        due = existing[1]
+        rem = (due - int(time.time())) // 3600
+        return await m.reply(f"❌ قبلاً {existing[0]} سانت وام داری!
+⏳ {rem} ساعت تا موعد پرداخت")
+    due_time = int(time.time()) + 24*60*60
+    c.execute("INSERT OR REPLACE INTO game_loans(user_id, amount, due_time) VALUES(?,?,?)", (m.from_user.id, amt, due_time))
+    c.execute("UPDATE users SET size=size+? WHERE user_id=?", (amt, m.from_user.id))
+    db.commit()
+    await m.reply(
+        f"💰 وام از بازی\n\n"
+        f"💵 مقدار: {amt} سانت\n"
+        f"⏳ مهلت پرداخت: ۲۴ ساعت\n\n"
+        f"برای پرداخت: /gpay {amt}"
+    )
+
+@dp.message(Command("gpay"))
+async def gpay(m:Message):
+    user(m.from_user.id, m.from_user.full_name)
+    loan = c.execute("SELECT amount, due_time FROM game_loans WHERE user_id=?", (m.from_user.id,)).fetchone()
+    if not loan:
+        return await m.reply("❌ وامی نداری!")
+    amt, due_time = loan
+    size = c.execute("SELECT size FROM users WHERE user_id=?", (m.from_user.id,)).fetchone()[0]
+    if size < amt:
+        return await m.reply(f"❌ سانت کافی نداری! باید {amt} سانت داشته باشی.")
+    c.execute("UPDATE users SET size=size-? WHERE user_id=?", (amt, m.from_user.id))
+    c.execute("DELETE FROM game_loans WHERE user_id=?", (m.from_user.id,))
+    db.commit()
+    await m.reply(f"✅ وام {amt} سانت پرداخت شد!")
+
+async def check_loans(bot):
+    while True:
+        await asyncio.sleep(60)
+        now = int(time.time())
+        overdue = c.execute("SELECT user_id, amount FROM game_loans WHERE due_time<?", (now,)).fetchall()
+        for uid, amt in overdue:
+            size = c.execute("SELECT size FROM users WHERE user_id=?", (uid,)).fetchone()
+            if not size:
+                continue
+            size = size[0]
+            paid = 0
+            msg = f"⚠️ وام {amt} سانت موعدش گذشت!\n\n"
+            # sell celebs to cover debt
+            if size < amt:
+                celebs = c.execute("SELECT celeb, paid_price FROM collections WHERE user_id=? ORDER BY paid_price DESC", (uid,)).fetchall()
+                for celeb, paid_price in celebs:
+                    if paid >= amt:
+                        break
+                    c.execute("DELETE FROM collections WHERE user_id=? AND celeb=?", (uid, celeb))
+                    c.execute("UPDATE users SET size=size+? WHERE user_id=?", (paid_price, uid))
+                    paid += paid_price
+                    msg += f"💸 {celeb} فروخته شد (+{paid_price} سانت)\n"
+                db.commit()
+                size = c.execute("SELECT size FROM users WHERE user_id=?", (uid,)).fetchone()[0]
+            # deduct what we can
+            deduct = min(amt, size)
+            c.execute("UPDATE users SET size=size-? WHERE user_id=?", (deduct, uid))
+            remaining = amt - deduct
+            if remaining > 0:
+                c.execute("UPDATE users SET size=size-? WHERE user_id=?", (remaining, uid))
+                msg += f"📉 {remaining} سانت بدهی — حساب منفی شد!"
+            else:
+                msg += f"✅ {amt} سانت کسر شد."
+            c.execute("DELETE FROM game_loans WHERE user_id=?", (uid,))
+            db.commit()
+            try:
+                await bot.send_message(uid, msg)
+            except:
+                pass
+
 @dp.message(Command("addcm"))
 async def addcm(m:Message):
     if m.from_user.id != ADMIN_ID:
@@ -539,6 +637,7 @@ async def main():
     ]
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
     await bot.set_my_commands(commands, scope=BotCommandScopeAllGroupChats())
+    asyncio.create_task(check_loans(bot))
     await dp.start_polling(bot)
 
 if __name__=="__main__":
