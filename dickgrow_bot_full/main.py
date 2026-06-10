@@ -1,7 +1,10 @@
+
 import os, sqlite3, random, time
+import aiohttp
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
+from aiogram.types import BufferedInputFile
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
@@ -217,22 +220,36 @@ def build_market_kb(tier, page):
         buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"mkt:{tier}:{page+1}"))
     return InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
 
+async def fetch_photo(url: str) -> BufferedInputFile | None:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    filename = url.split("/")[-1]
+                    return BufferedInputFile(data, filename=filename)
+    except Exception:
+        pass
+    return None
+
 @dp.message(Command("market"))
 async def market(m:Message):
     for tier in ["S", "A", "B"]:
-        txt, photo = build_market_caption(tier, 0)
+        txt, photo_url = build_market_caption(tier, 0)
         kb = build_market_kb(tier, 0)
-        try:
+        photo = await fetch_photo(photo_url) if photo_url else None
+        if photo:
             await m.bot.send_photo(m.chat.id, photo, caption=txt, reply_markup=kb)
-        except Exception:
+        else:
             await m.bot.send_message(m.chat.id, txt, reply_markup=kb)
 
 @dp.callback_query(F.data.startswith("mkt:"))
 async def market_page_nav(q: CallbackQuery):
     _, tier, page = q.data.split(":")
     page = int(page)
-    txt, photo = build_market_caption(tier, page)
+    txt, photo_url = build_market_caption(tier, page)
     kb = build_market_kb(tier, page)
+    photo = await fetch_photo(photo_url) if photo_url else None
     try:
         if photo and q.message.photo:
             await q.message.edit_media(
@@ -268,7 +285,7 @@ async def collection(m:Message):
 
 async def send_collection_page(chat_id, owner_id, celebs, page, bot, viewer_id=None):
     name = celebs[page]
-    tier, price, spin, photo = CELEBS[name]
+    tier, price, spin, photo_url = CELEBS[name]
     tier_label = {"S": "🥇 S", "A": "🥈 A", "B": "🥉 B"}[tier]
     txt = (
         f"📚 کالکشن — {page+1}/{len(celebs)}\n\n"
@@ -284,13 +301,11 @@ async def send_collection_page(chat_id, owner_id, celebs, page, bot, viewer_id=N
     if page < len(celebs) - 1:
         buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"col:{owner_id}:{page+1}"))
     kb = InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
+    photo = await fetch_photo(photo_url) if photo_url else None
     if photo:
-        try:
-            await bot.send_photo(chat_id, photo, caption=txt, reply_markup=kb)
-            return
-        except:
-            pass
-    await bot.send_message(chat_id, txt, reply_markup=kb)
+        await bot.send_photo(chat_id, photo, caption=txt, reply_markup=kb)
+    else:
+        await bot.send_message(chat_id, txt, reply_markup=kb)
 
 @dp.callback_query(F.data.startswith("col:"))
 async def collection_nav(q: CallbackQuery):
@@ -303,7 +318,7 @@ async def collection_nav(q: CallbackQuery):
     if page >= len(celebs):
         page = len(celebs) - 1
     name = celebs[page]
-    tier, price, spin, photo = CELEBS[name]
+    tier, price, spin, photo_url = CELEBS[name]
     tier_label = {"S": "🥇 S", "A": "🥈 A", "B": "🥉 B"}[tier]
     txt = (
         f"📚 کالکشن — {page+1}/{len(celebs)}\n\n"
@@ -319,6 +334,7 @@ async def collection_nav(q: CallbackQuery):
     if page < len(celebs) - 1:
         buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"col:{owner_id}:{page+1}"))
     kb = InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
+    photo = await fetch_photo(photo_url) if photo_url else None
     try:
         if photo and q.message.photo:
             await q.message.edit_media(
@@ -376,6 +392,7 @@ async def buy(m:Message):
     c.execute("INSERT INTO collections(user_id,celeb,paid_price) VALUES(?,?,?)",(m.from_user.id,name,price))
     db.commit()
 
+    photo = await fetch_photo(photo) if photo else None
     if photo:
         await m.bot.send_photo(m.chat.id, photo, caption=f"🎉 خرید موفق!\n\n👑 {name}")
     else:
@@ -435,7 +452,8 @@ async def spin(m:Message):
     )
     db.commit()
 
-    photo=CELEBS[celeb][3]
+    photo_url=CELEBS[celeb][3]
+    photo = await fetch_photo(photo_url) if photo_url else None
     if photo:
         await m.bot.send_photo(m.chat.id, photo, caption=f"🎰 اسپین موفق!\n\n👑 {celeb}")
     else:
@@ -483,7 +501,7 @@ async def list_celeb(m:Message):
     cur = c.execute("INSERT INTO listings(seller_id, celeb, price) VALUES(?,?,?)", (m.from_user.id, name, price))
     db.commit()
     lid = cur.lastrowid
-    tier, orig_price, spin, photo = CELEBS[name]
+    tier, orig_price, spin, photo_url = CELEBS[name]
     kb = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text=f"🛒 خرید به قیمت {price} سانت", callback_data=f"buyoff:{lid}")
     ]])
@@ -493,13 +511,11 @@ async def list_celeb(m:Message):
         f"💰 قیمت: {price} سانت\n"
         f"👤 فروشنده: {m.from_user.full_name}"
     )
+    photo = await fetch_photo(photo_url) if photo_url else None
     if photo:
-        try:
-            await m.bot.send_photo(m.chat.id, photo, caption=caption, reply_markup=kb)
-            return
-        except:
-            pass
-    await m.reply(caption, reply_markup=kb)
+        await m.bot.send_photo(m.chat.id, photo, caption=caption, reply_markup=kb)
+    else:
+        await m.reply(caption, reply_markup=kb)
 
 @dp.callback_query(F.data.startswith("buyoff:"))
 async def buyoff(q: CallbackQuery):
