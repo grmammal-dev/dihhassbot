@@ -1,3 +1,4 @@
+
 import os, sqlite3, random, time
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
@@ -5,7 +6,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=1*60*60
+COOLDOWN=3*60*60
 ADMIN_ID=5952134460
 
 db=sqlite3.connect(DB)
@@ -32,7 +33,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(5,20) 
+    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -147,26 +148,36 @@ async def accept(q:CallbackQuery):
 
 
 # ===== Celebrity Collection System =====
-c.execute("CREATE TABLE IF NOT EXISTS collections(user_id INTEGER, celeb TEXT, paid_price INTEGER DEFAULT 0)")
+c.execute("CREATE TABLE IF NOT EXISTS collections(user_id INTEGER, celeb TEXT, paid_price INTEGER DEFAULT 0, locked INTEGER DEFAULT 0)")
 db.commit()
 
 
 CELEBS = {
-    "Ana de Armas": ("S",300,150,"https://i.postimg.cc/5037v189/photo-5848289682741988825-x.jpg"),
-    "Madison Beer": ("S",300,150,"https://i.postimg.cc/c4Dp27g8/photo-5848289682741988827-x.jpg"),
-    "Georgina Rodriguez": ("S",300,150,"https://i.postimg.cc/J4hgNyT6/photo-5848289682741988826-x.jpg"),
-    "Kylie Jenner": ("S",300,150,"https://i.postimg.cc/XYYVy7Fw/photo-5848328955922944688-x.jpg"),
-    "Sydney Sweeney": ("S",300,150,"https://i.postimg.cc/zfw0Z5tP/photo-5848289682741988820-y.jpg"),
-    "Olivia Cooke": ("A",200,100,"https://i.postimg.cc/t4Q3XwVN/photo-5848289682741988811-y.jpg"),
-    "Scarlett Johansson": ("A",200,100,"https://i.postimg.cc/9f2YBKmW/photo-5848289682741988817-y.jpg"),
-    "Sabrina Carpenter": ("A",200,100,"https://i.postimg.cc/L6hCqc56/photo-5848289682741988822-x.jpg"),
-    "Olivia Rodrigo": ("A",200,100,"https://i.postimg.cc/jS1rw6tv/photo-5848289682741988828-y.jpg"),
-    "Kendall Jenner": ("A",200,100,"https://i.postimg.cc/Yqp7Jqdb/photo-5848289682741988829-y.jpg"),
-    "Kathryn Newton": ("B",100,50,"https://i.postimg.cc/J08ywVFN/Kathryn-Newton-4DX-2023.jpg"),
-    "Margot Robbie": ("B",100,50,"https://i.postimg.cc/rFmVDw59/b4965bcbfbe0e83ad658b74fa2c57cd0.jpg"),
-    "Taylor Swift": ("B",100,50,"https://i.postimg.cc/JhWC5rHq/images.jpg"),
-    "Dua Lipa": ("B",100,50,"https://i.postimg.cc/Fz62dNQS/Dua-Lipa-with-Warner-Music.jpg"),
-    "Megan Fox": ("B",100,50,"https://i.postimg.cc/W4VxJ5xg/Megan-Fox.jpg"),
+    "Ana de Armas": ("S",300,150,"https://i.postimg.cc/JzdhGdRj/download-(4).jpg"),
+    "Kylie Jenner": ("S",300,150,"https://i.postimg.cc/HkKppcty/download-(5).jpg"),
+    "Sydney Sweeney": ("S",300,150,"https://i.postimg.cc/4NxZVbLF/download-(6).jpg"),
+    "Olivia Cooke": ("A",200,100,"https://i.postimg.cc/G3kJGv8k/olivia-cooke-in-the-girlfriend.jpg"),
+    "Scarlett Johansson": ("A",200,100,"https://i.postimg.cc/rmT2mSRG/download-(7).jpg"),
+    "Sabrina Carpenter": ("A",200,100,"https://i.postimg.cc/4dPqxjgJ/Sabrina-Carpenter.jpg"),
+    "Dua Lipa": ("A",100,50,"https://i.postimg.cc/VsM021zP/download-(8).jpg"),
+    "Anya Taylor Joy": ("B",100,50,"https://i.postimg.cc/1XF4D05F/margot-anya-taylor-joy.jpg"),
+    "Jenna Ortega": ("A",100,50,"https://i.postimg.cc/cL068nqV/jenna-ortega.jpg"),
+    "Sophie Tatcher": ("A",100,50,"https://i.postimg.cc/d0S0XNhp/1031465120909581257.jpg"),
+    "Mia Plays": ("B",100,50,"https://i.postimg.cc/GmLhpnYg/1083186147870726920.jpg"),
+    "Angelina Jolie": ("A",100,50,"https://i.postimg.cc/g05Y4w5Y/angelina-jolie-(1).jpg"),
+    "Anne Hauthway": ("B",100,50,"https://i.postimg.cc/kgY9X67D/Anne-Hathaway.jpg"),
+    "Emma Watson": ("B",100,50,"https://i.postimg.cc/kGyPrDjq/Belle.jpg"),
+    "Billie Eilish": ("S",100,50,"Bilie eilish https://i.postimg.cc/L6NFNYYY/Billie-Eilish.jpg"),
+    "Emilia Clarke": ("B",100,50,"https://i.postimg.cc/vZkjNWQ2/download-(1).jpg"),
+    "Billie Eiliish": ("A",100,50,"https://i.postimg.cc/kGbjb56c/download-(9).jpg"),
+    "Folorance Pugh": ("B",100,50,"https://i.postimg.cc/D0NdwPp4/florence.jpg"),
+    "AZAD": ("B",100,50,"https://i.postimg.cc/k4XxNpkW/images-(1).jpg"),
+    "Elizabet Olson": ("B",100,50,"https://i.postimg.cc/MKxj14V6/Sally-Owen-icon.jpg"),
+    "Victoria Pederetti": ("B",100,50,"https://i.postimg.cc/5tFthq8y/victoria-pedretti.jpg"),
+    "Double KIIR": ("A",100,50,"https://i.postimg.cc/QdFN7k4Q/Screenshot-2026-06-07-150916.png"),
+    "Habibi": ("B",100,50,"https://i.postimg.cc/Hx9TmSxf/Screenshot-2026-06-07-150740.png"),
+    "Faghih": ("B",100,50,"https://i.postimg.cc/y6n7rr2r/Screenshot-2026-06-07-150340.png"),
+    "Natalie Dyer": ("B",100,50,"https://i.postimg.cc/j5cYmL3J/this-pic.jpg"),
 }
 
 
@@ -335,16 +346,26 @@ async def buy(m:Message):
     if size<price:
         return await m.reply("💸 سانت کافی نداری!")
 
-    owned=c.execute(
-        "SELECT user_id FROM collections WHERE celeb=?",
-        (name,)
-    ).fetchone()
+    tier_key = CELEBS[name][0]
 
-    if owned:
-        if owned[0] == m.from_user.id:
-            return await m.reply("📚 این سلبریتی رو داری!")
-        owner_name=c.execute("SELECT name FROM users WHERE user_id=?",(owned[0],)).fetchone()[0]
-        return await m.reply(f"❌ این سلبریتی قبلاً توسط {owner_name} خریداری شده!")
+    # check if user already owns it
+    user_owned = c.execute("SELECT 1 FROM collections WHERE user_id=? AND celeb=?", (m.from_user.id, name)).fetchone()
+    if user_owned:
+        return await m.reply("📚 این سلبریتی رو داری!")
+
+    # tier S and A are exclusive — check if anyone owns it (locked or not)
+    # tier B is only exclusive if locked
+    if tier_key in ("S", "A"):
+        owned = c.execute("SELECT user_id FROM collections WHERE celeb=?", (name,)).fetchone()
+        if owned:
+            owner_name = c.execute("SELECT name FROM users WHERE user_id=?", (owned[0],)).fetchone()[0]
+            return await m.reply(f"❌ این سلبریتی قبلاً توسط {owner_name} خریداری شده!")
+    else:
+        # tier B — only block if locked
+        locked = c.execute("SELECT user_id FROM collections WHERE celeb=? AND locked=1", (name,)).fetchone()
+        if locked:
+            owner_name = c.execute("SELECT name FROM users WHERE user_id=?", (locked[0],)).fetchone()[0]
+            return await m.reply(f"🔒 این سلبریتی توسط {owner_name} قفل شده!")
 
     c.execute("UPDATE users SET size=size-? WHERE user_id=?",(price,m.from_user.id))
     c.execute("INSERT INTO collections(user_id,celeb,paid_price) VALUES(?,?,?)",(m.from_user.id,name,price))
@@ -381,18 +402,27 @@ async def spin(m:Message):
 
     c.execute("UPDATE users SET size=size-? WHERE user_id=?",(cost,m.from_user.id))
 
-    owned=c.execute(
-        "SELECT user_id FROM collections WHERE celeb=?",
-        (celeb,)
-    ).fetchone()
-
-    if owned:
+    spin_tier = CELEBS[celeb][0]
+    user_owned = c.execute("SELECT 1 FROM collections WHERE user_id=? AND celeb=?", (m.from_user.id, celeb)).fetchone()
+    if user_owned:
         c.execute("UPDATE users SET size=size+? WHERE user_id=?",(cost,m.from_user.id))
         db.commit()
-        if owned[0] == m.from_user.id:
-            return await m.reply(f"🔄 این سلبریتی رو قبلاً داری!\n\n👑 {celeb}\n💰 {cost} سانت برگشت داده شد.")
-        owner_name=c.execute("SELECT name FROM users WHERE user_id=?",(owned[0],)).fetchone()[0]
-        return await m.reply(f"🔄 این سلبریتی قبلاً توسط {owner_name} خریداری شده!\n\n👑 {celeb}\n💰 {cost} سانت برگشت داده شد.")
+        return await m.reply(f"🔄 این سلبریتی رو قبلاً داری!\n\n👑 {celeb}\n💰 {cost} سانت برگشت داده شد.")
+
+    if spin_tier in ("S", "A"):
+        owned = c.execute("SELECT user_id FROM collections WHERE celeb=?", (celeb,)).fetchone()
+        if owned:
+            c.execute("UPDATE users SET size=size+? WHERE user_id=?",(cost,m.from_user.id))
+            db.commit()
+            owner_name=c.execute("SELECT name FROM users WHERE user_id=?",(owned[0],)).fetchone()[0]
+            return await m.reply(f"🔄 این سلبریتی قبلاً توسط {owner_name} خریداری شده!\n\n👑 {celeb}\n💰 {cost} سانت برگشت داده شد.")
+    else:
+        locked = c.execute("SELECT user_id FROM collections WHERE celeb=? AND locked=1", (celeb,)).fetchone()
+        if locked:
+            c.execute("UPDATE users SET size=size+? WHERE user_id=?",(cost,m.from_user.id))
+            db.commit()
+            owner_name=c.execute("SELECT name FROM users WHERE user_id=?",(locked[0],)).fetchone()[0]
+            return await m.reply(f"🔒 این سلبریتی توسط {owner_name} قفل شده!\n\n👑 {celeb}\n💰 {cost} سانت برگشت داده شد.")
 
     c.execute(
         "INSERT INTO collections(user_id,celeb,paid_price) VALUES(?,?,?)",
@@ -517,6 +547,28 @@ async def sell(m:Message):
     db.commit()
     await m.reply(f"💸 فروش موفق!\n\n👑 {name}\n💰 {paid} سانت به حسابت اضافه شد!")
 
+@dp.message(Command("lock"))
+async def lock_celeb(m:Message):
+    name = m.text.replace("/lock","",1).strip()
+    if name not in CELEBS:
+        return await m.reply("❌ سلبریتی پیدا نشد.")
+    tier_key = CELEBS[name][0]
+    if tier_key != "B":
+        return await m.reply("❌ فقط سلبریتی‌های Tier B نیاز به قفل دارن!")
+    user(m.from_user.id, m.from_user.full_name)
+    owned = c.execute("SELECT locked FROM collections WHERE user_id=? AND celeb=?", (m.from_user.id, name)).fetchone()
+    if not owned:
+        return await m.reply("❌ این سلبریتی رو نداری!")
+    if owned[0] == 1:
+        return await m.reply("🔒 این سلبریتی قبلاً قفله!")
+    size = c.execute("SELECT size FROM users WHERE user_id=?", (m.from_user.id,)).fetchone()[0]
+    if size < 25:
+        return await m.reply("❌ برای قفل کردن به ۲۵ سانت نیاز داری!")
+    c.execute("UPDATE users SET size=size-25 WHERE user_id=?", (m.from_user.id,))
+    c.execute("UPDATE collections SET locked=1 WHERE user_id=? AND celeb=?", (m.from_user.id, name))
+    db.commit()
+    await m.reply(f"🔒 {name} قفل شد!\n\n💰 ۲۵ سانت کسر شد.\nحالا کسی دیگه نمیتونه این سلبریتی رو بخره.")
+
 @dp.message(Command("gloan"))
 async def gloan(m:Message):
     try:
@@ -614,6 +666,28 @@ async def addcm(m:Message):
     db.commit()
     new_size = c.execute("SELECT size FROM users WHERE user_id=?", (target,)).fetchone()[0]
     await m.reply(f"✅ {amount} سانت به {m.reply_to_message.from_user.full_name} اضافه شد!\n📏 اندازه جدید: {new_size} سانت")
+
+
+@dp.message(Command("addcb"))
+async def addcb(m:Message):
+    if m.from_user.id != ADMIN_ID:
+        return await m.reply("❌ دسترسی ندارید!")
+    name = m.text.replace("/addcb","",1).strip()
+    if not name:
+        return await m.reply("Usage: /addcb [نام سلبریتی] (reply to a user)\nمثال: /addcb Dua Lipa")
+    if name not in CELEBS:
+        return await m.reply("❌ سلبریتی پیدا نشد.")
+    if not m.reply_to_message:
+        return await m.reply("Reply to a user to give the celeb.")
+    target = m.reply_to_message.from_user.id
+    user(target, m.reply_to_message.from_user.full_name)
+    already = c.execute("SELECT 1 FROM collections WHERE user_id=? AND celeb=?", (target, name)).fetchone()
+    if already:
+        return await m.reply(f"❌ {m.reply_to_message.from_user.full_name} این سلبریتی رو داره!")
+    tier, price, spin, photo = CELEBS[name]
+    c.execute("INSERT INTO collections(user_id,celeb,paid_price,locked) VALUES(?,?,?,0)", (target, name, price))
+    db.commit()
+    await m.reply(f"✅ {name} به {m.reply_to_message.from_user.full_name} داده شد!\n👑 Tier {tier}")
 
 async def main():
     bot=Bot(TOKEN)
