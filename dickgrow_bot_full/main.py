@@ -177,7 +177,7 @@ CELEBS = {
     "Elizabet Olson": ("B",100,50,"https://i.postimg.cc/MKxj14V6/Sally-Owen-icon.jpg"),
     "Victoria Pederetti": ("B",100,50,"https://i.postimg.cc/5tFthq8y/victoria-pedretti.jpg"),
     "Double KIIR": ("A",100,50,"https://i.postimg.cc/vZXPJk5K/Screenshot-2026-06-07-150916.png"),
-    "Habibi": ("B",100,50,"https://i.postimg.cc/Hn40Q8zj/sd.png"),
+    "Habibi": ("B",100,50,"https://i.postimg.cc/wBj6zCZN/sd.jpg"),
     "Faghih": ("B",100,50,"https://i.postimg.cc/y6n7rr2r/Screenshot-2026-06-07-150340.png"),
     "Natalie Dyer": ("B",100,50,"https://i.postimg.cc/j5cYmL3J/this-pic.jpg"),
 }
