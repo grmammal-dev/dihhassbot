@@ -8,7 +8,7 @@ from aiogram.types import BufferedInputFile
 
 TOKEN = os.getenv("BOT_TOKEN")
 DB="database.db"
-COOLDOWN=3*60*60
+COOLDOWN=1*60*60
 ADMIN_ID=5952134460
 
 db=sqlite3.connect(DB)
@@ -35,7 +35,7 @@ async def grow(m:Message):
     if now-last<COOLDOWN:
         rem=(COOLDOWN-(now-last))//60
         return await m.reply(f"⏳ هنوز {rem} دقیقه تا رشد بعدی مونده!")
-    delta=random.randint(1,10) if random.random()<0.8 else -random.randint(1,5)
+    delta=random.randint(5,20)
     size=max(0,size+delta)
     c.execute("UPDATE users SET size=?,last_grow=? WHERE user_id=?",(size,now,m.from_user.id)); db.commit()
     await m.reply(
@@ -176,8 +176,8 @@ CELEBS = {
     "AZAD": ("B",100,50,"https://i.postimg.cc/k4XxNpkW/images-(1).jpg"),
     "Elizabet Olson": ("B",100,50,"https://i.postimg.cc/MKxj14V6/Sally-Owen-icon.jpg"),
     "Victoria Pederetti": ("B",100,50,"https://i.postimg.cc/5tFthq8y/victoria-pedretti.jpg"),
-    "Double KIIR": ("A",100,50,"https://i.postimg.cc/QdFN7k4Q/Screenshot-2026-06-07-150916.png"),
-    "Habibi": ("B",100,50,"https://i.postimg.cc/Hx9TmSxf/Screenshot-2026-06-07-150740.png"),
+    "Double KIIR": ("A",100,50,"https://i.postimg.cc/vZXPJk5K/Screenshot-2026-06-07-150916.png"),
+    "Habibi": ("B",100,50,"https://i.postimg.cc/Hn40Q8zj/sd.png"),
     "Faghih": ("B",100,50,"https://i.postimg.cc/y6n7rr2r/Screenshot-2026-06-07-150340.png"),
     "Natalie Dyer": ("B",100,50,"https://i.postimg.cc/j5cYmL3J/this-pic.jpg"),
 }
