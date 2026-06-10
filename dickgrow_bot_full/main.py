@@ -1,4 +1,3 @@
-
 import os, sqlite3, random, time
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
@@ -159,7 +158,25 @@ CELEBS = {
     "Olivia Cooke": ("A",200,100,"https://i.postimg.cc/G3kJGv8k/olivia-cooke-in-the-girlfriend.jpg"),
     "Scarlett Johansson": ("A",200,100,"https://i.postimg.cc/rmT2mSRG/download-(7).jpg"),
     "Sabrina Carpenter": ("A",200,100,"https://i.postimg.cc/4dPqxjgJ/Sabrina-Carpenter.jpg"),
-    "Dua Lipa": ("B",100,50,"https://i.postimg.cc/VsM021zP/download-(8).jpg"),
+    "Dua Lipa": ("A",100,50,"https://i.postimg.cc/VsM021zP/download-(8).jpg"),
+    "Anya Taylor Joy": ("B",100,50,"https://i.postimg.cc/1XF4D05F/margot-anya-taylor-joy.jpg"),
+    "Jenna Ortega": ("A",100,50,"https://i.postimg.cc/cL068nqV/jenna-ortega.jpg"),
+    "Sophie Tatcher": ("A",100,50,"https://i.postimg.cc/d0S0XNhp/1031465120909581257.jpg"),
+    "Mia Plays": ("B",100,50,"https://i.postimg.cc/GmLhpnYg/1083186147870726920.jpg"),
+    "Angelina Jolie": ("A",100,50,"https://i.postimg.cc/g05Y4w5Y/angelina-jolie-(1).jpg"),
+    "Anne Hauthway": ("B",100,50,"https://i.postimg.cc/kgY9X67D/Anne-Hathaway.jpg"),
+    "Emma Watson": ("B",100,50,"https://i.postimg.cc/kGyPrDjq/Belle.jpg"),
+    "Billie Eilish": ("S",100,50,"https://i.postimg.cc/L6NFNYYY/Billie-Eilish.jpg"),
+    "Emilia Clarke": ("B",100,50,"https://i.postimg.cc/vZkjNWQ2/download-(1).jpg"),
+    "Billie Eiliish": ("A",100,50,"https://i.postimg.cc/kGbjb56c/download-(9).jpg"),
+    "Folorance Pugh": ("B",100,50,"https://i.postimg.cc/D0NdwPp4/florence.jpg"),
+    "AZAD": ("B",100,50,"https://i.postimg.cc/k4XxNpkW/images-(1).jpg"),
+    "Elizabet Olson": ("B",100,50,"https://i.postimg.cc/MKxj14V6/Sally-Owen-icon.jpg"),
+    "Victoria Pederetti": ("B",100,50,"https://i.postimg.cc/5tFthq8y/victoria-pedretti.jpg"),
+    "Double KIIR": ("A",100,50,"https://i.postimg.cc/QdFN7k4Q/Screenshot-2026-06-07-150916.png"),
+    "Habibi": ("B",100,50,"https://i.postimg.cc/Hx9TmSxf/Screenshot-2026-06-07-150740.png"),
+    "Faghih": ("B",100,50,"https://i.postimg.cc/y6n7rr2r/Screenshot-2026-06-07-150340.png"),
+    "Natalie Dyer": ("B",100,50,"https://i.postimg.cc/j5cYmL3J/this-pic.jpg"),
 }
 
 
@@ -217,15 +234,18 @@ async def market_page_nav(q: CallbackQuery):
     txt, photo = build_market_caption(tier, page)
     kb = build_market_kb(tier, page)
     try:
-        await q.message.edit_media(
-            media=InputMediaPhoto(media=photo, caption=txt),
-            reply_markup=kb
-        )
-    except Exception:
-        try:
+        if photo and q.message.photo:
+            await q.message.edit_media(
+                media=InputMediaPhoto(media=photo, caption=txt),
+                reply_markup=kb
+            )
+        elif q.message.photo:
             await q.message.edit_caption(caption=txt, reply_markup=kb)
-        except Exception:
-            await q.message.answer(txt, reply_markup=kb)
+        else:
+            await q.message.edit_text(txt, reply_markup=kb)
+    except Exception as e:
+        await q.answer(f"خطا: {e}", show_alert=True)
+        return
     await q.answer()
 
 @dp.message(Command("collection"))
@@ -300,15 +320,18 @@ async def collection_nav(q: CallbackQuery):
         buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"col:{owner_id}:{page+1}"))
     kb = InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
     try:
-        if photo:
+        if photo and q.message.photo:
             await q.message.edit_media(
                 media=InputMediaPhoto(media=photo, caption=txt),
                 reply_markup=kb
             )
-        else:
+        elif q.message.photo:
             await q.message.edit_caption(caption=txt, reply_markup=kb)
-    except Exception:
-        await q.message.answer(txt, reply_markup=kb)
+        else:
+            await q.message.edit_text(txt, reply_markup=kb)
+    except Exception as e:
+        await q.answer(f"خطا: {e}", show_alert=True)
+        return
     await q.answer()
 
 
